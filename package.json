@@ -1,0 +1,13 @@
+{
+  "name": "unified-traffic-violation-and-demerit-system",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Root package to proxy workspace scripts",
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "build": "npm --prefix frontend run build",
+    "start": "npm --prefix backend run start"
+  }
+}
