@@ -79,12 +79,6 @@ function Landing() {
               )}
             </CardAction>
           </CardHeader>
-          <CardContent>
-            <p>Card Content</p>
-          </CardContent>
-          <CardFooter>
-            <p>Card Footer</p>
-          </CardFooter>
         </Card>
       </header>
 
