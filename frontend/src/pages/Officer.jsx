@@ -2,17 +2,21 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { FileText, Plus, BarChart3, LogOut, Shield, MapPin, User, Car, CheckCircle, RefreshCw } from "lucide-react";
+import { 
+  FileText, Plus, BarChart3, LogOut, Shield, MapPin, 
+  User, Car, CheckCircle, RefreshCw, Edit, Save, X 
+} from "lucide-react";
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 function Officer() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("dashboard"); // Tab state: dashboard, create, history
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [tickets, setTickets] = useState([]);
   const [violationTypes, setViolationTypes] = useState([]);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
-
-  // Form State for New Ticket
+  
+  // State for Creating Ticket
   const [formData, setFormData] = useState({
     ticket_number: "TKT-" + Math.floor(Math.random() * 90000 + 10000),
     location: "",
@@ -20,6 +24,10 @@ function Officer() {
     vehicle_id: "",
     violation_type_id: ""
   });
+
+  // State for Editing
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({ status: "", location: "" });
 
   const token = localStorage.getItem("authToken");
   const headers = { 
@@ -52,34 +60,51 @@ function Officer() {
     }
   };
 
+  const handleUpdateTicket = async (id) => {
+    try {
+      const res = await fetch(`http://localhost:3000/api/tickets/${id}`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify(editForm)
+      });
+      if (res.ok) {
+        setEditingId(null);
+        fetchInitialData();
+        alert("Ticket updated successfully");
+      }
+    } catch (err) {
+      alert("Update failed");
+    }
+  };
+
+  const startEditing = (ticket) => {
+    setEditingId(ticket.ticket_id);
+    setEditForm({ status: ticket.status, location: ticket.location });
+  };
+
   const handleCreateTicket = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      // 1. Create the Ticket
       const ticketPayload = {
         ...formData,
         date_issued: new Date().toISOString().slice(0, 10),
         time_issued: new Date().toTimeString().slice(0, 8),
         issued_by: user.user_id,
-        lgu_id: 1 // Defaulting to seed LGU ID
+        lgu_id: user.lgu_id || 1 
       };
-
       const res = await fetch("http://localhost:3000/api/tickets", {
         method: "POST",
         headers,
         body: JSON.stringify(ticketPayload)
       });
       const data = await res.json();
-
       if (res.ok) {
-        // 2. Add the Violation to the ticket (using the route in tickets.route.js)
         await fetch(`http://localhost:3000/api/tickets/${data.ticket_id}/violations`, {
           method: "POST",
           headers,
           body: JSON.stringify({ violation_type_id: formData.violation_type_id })
         });
-
         alert("Ticket Issued Successfully!");
         setFormData({
           ticket_number: "TKT-" + Math.floor(Math.random() * 90000 + 10000),
@@ -89,7 +114,7 @@ function Officer() {
           violation_type_id: ""
         });
         fetchInitialData();
-        setActiveTab("history");
+        setActiveTab("edit");
       }
     } catch (err) {
       alert("Error issuing ticket");
@@ -107,125 +132,196 @@ function Officer() {
 
   const renderDashboard = () => (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="bg-primary text-primary-foreground">
-          <CardHeader><CardTitle className="text-sm">Total Issued</CardTitle></CardHeader>
-          <CardContent><p className="text-4xl font-bold">{tickets.length}</p></CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setActiveTab("create")}>
-          <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Plus size={16}/> New Ticket</CardTitle></CardHeader>
-          <CardContent><p className="text-xs text-muted-foreground">Issue a new violation immediately.</p></CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle className="text-sm">Pending Payments</CardTitle></CardHeader>
-          <CardContent><p className="text-4xl font-bold">{tickets.filter(t => t.status === 'OPEN').length}</p></CardContent>
-        </Card>
-      </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className="cursor-pointer hover:border-primary transition-all" onClick={() => setActiveTab("create")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-primary"><Plus className="w-5 h-5"/> Create Ticket</CardTitle>
+              <CardDescription>Issue a new traffic violation to a driver.</CardDescription>
+            </CardHeader>
+          </Card>
+          <Card className="cursor-pointer hover:border-primary transition-all" onClick={() => setActiveTab("edit")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-primary"><Edit className="w-5 h-5"/> Edit Ticket</CardTitle>
+              <CardDescription>Modify status or location of existing tickets.</CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
 
-      <Card>
-        <CardHeader><CardTitle>Latest Activity</CardTitle></CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {tickets.slice(0, 3).map(t => (
-              <div key={t.ticket_id} className="flex justify-between items-center border-b pb-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-muted rounded"><FileText size={16}/></div>
-                  <div>
-                    <p className="text-sm font-bold">{t.ticket_number}</p>
-                    <p className="text-xs text-muted-foreground">{t.plate_number} • {t.date_issued}</p>
-                  </div>
-                </div>
-                <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${t.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{t.status}</span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader><CardTitle>Recent Activity Overview</CardTitle></CardHeader>
+          <CardContent>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Ticket No.</TableHead>
+                        <TableHead>Driver</TableHead>
+                        <TableHead>Plate</TableHead>
+                        <TableHead>Status</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {tickets.slice(0, 5).map((t) => (
+                        <TableRow key={t.ticket_id}>
+                            <TableCell className="font-bold">{t.ticket_number}</TableCell>
+                            <TableCell>{t.last_name}</TableCell>
+                            <TableCell className="font-mono">{t.plate_number}</TableCell>
+                            <TableCell>
+                                <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${t.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                    {t.status}
+                                </span>
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
     </div>
   );
 
   const renderCreateForm = () => (
     <Card className="max-w-2xl mx-auto animate-in slide-in-from-bottom-4 duration-500">
       <CardHeader>
-        <CardTitle>Issue Violation Ticket</CardTitle>
-        <CardDescription>Enter the driver and vehicle details accurately.</CardDescription>
+        <CardTitle>Issue New Violation</CardTitle>
+        <CardDescription>Enter details for the new traffic ticket.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleCreateTicket} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="space-y-1">
-              <label className="text-xs font-bold flex items-center gap-1"><FileText size={12}/> Ticket No.</label>
-              <input disabled className="w-full p-2 border rounded bg-muted text-sm" value={formData.ticket_number} />
+              <label className="font-bold">Ticket Number</label>
+              <input disabled className="w-full p-2 border rounded bg-muted" value={formData.ticket_number} />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-bold flex items-center gap-1"><MapPin size={12}/> Location</label>
-              <input required className="w-full p-2 border rounded bg-background text-sm" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} placeholder="e.g. Main Ave." />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold flex items-center gap-1"><User size={12}/> Driver ID</label>
-              <input required type="number" className="w-full p-2 border rounded bg-background text-sm" value={formData.driver_id} onChange={e => setFormData({...formData, driver_id: e.target.value})} placeholder="1" />
+              <label className="font-bold">Location</label>
+              <input required className="w-full p-2 border rounded" placeholder="Street/Intersection" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-bold flex items-center gap-1"><Car size={12}/> Vehicle ID</label>
-              <input required type="number" className="w-full p-2 border rounded bg-background text-sm" value={formData.vehicle_id} onChange={e => setFormData({...formData, vehicle_id: e.target.value})} placeholder="1" />
+              <label className="font-bold">Driver ID</label>
+              <input required type="number" className="w-full p-2 border rounded" value={formData.driver_id} onChange={e => setFormData({...formData, driver_id: e.target.value})} />
+            </div>
+            <div className="space-y-1">
+              <label className="font-bold">Vehicle ID</label>
+              <input required type="number" className="w-full p-2 border rounded" value={formData.vehicle_id} onChange={e => setFormData({...formData, vehicle_id: e.target.value})} />
             </div>
           </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-bold">Violation Type</label>
-            <select required className="w-full p-2 border rounded bg-background text-sm" value={formData.violation_type_id} onChange={e => setFormData({...formData, violation_type_id: e.target.value})}>
+          <div className="space-y-1 text-sm">
+            <label className="font-bold">Violation Type</label>
+            <select required className="w-full p-2 border rounded bg-background" value={formData.violation_type_id} onChange={e => setFormData({...formData, violation_type_id: e.target.value})}>
               <option value="">Select Violation</option>
               {violationTypes.map(v => (
                 <option key={v.violation_type_id} value={v.violation_type_id}>{v.name} (₱{v.fine_amount})</option>
               ))}
             </select>
           </div>
-
-          <Button type="submit" disabled={loading} className="w-full">
-            {loading ? "Processing..." : "Confirm & Issue Ticket"}
-          </Button>
+          <Button type="submit" className="w-full" disabled={loading}>Issue Ticket</Button>
         </form>
       </CardContent>
     </Card>
   );
 
-  const renderHistory = () => (
+  const renderEditTickets = () => (
     <Card className="animate-in fade-in duration-500">
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Ticket History</CardTitle>
+        <div>
+          <CardTitle>Manage Tickets</CardTitle>
+          <CardDescription>Edit ticket details or change status.</CardDescription>
+        </div>
         <Button size="sm" variant="outline" onClick={fetchInitialData}><RefreshCw size={14} className="mr-2"/> Refresh</Button>
       </CardHeader>
       <CardContent>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-muted-foreground border-b"><th className="pb-3">Ticket No.</th><th>Driver</th><th>Plate No.</th><th>Date</th><th>Status</th></tr>
-          </thead>
-          <tbody>
-            {tickets.map(t => (
-              <tr key={t.ticket_id} className="border-b hover:bg-muted/30">
-                <td className="py-4 font-bold">{t.ticket_number}</td>
-                <td>{t.last_name || "N/A"}</td>
-                <td className="font-mono">{t.plate_number}</td>
-                <td>{t.date_issued}</td>
-                <td>
-                  <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${t.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                    {t.status}
-                  </span>
-                </td>
-              </tr>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Ticket No.</TableHead>
+              <TableHead>Location</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {tickets.map((t) => (
+              <TableRow key={t.ticket_id}>
+                <TableCell className="font-medium">{t.ticket_number}</TableCell>
+                <TableCell>
+                  {editingId === t.ticket_id ? (
+                    <input 
+                        className="border rounded px-2 py-1 text-sm w-full"
+                        value={editForm.location}
+                        onChange={(e) => setEditForm({...editForm, location: e.target.value})}
+                    />
+                  ) : t.location}
+                </TableCell>
+                <TableCell>
+                  {editingId === t.ticket_id ? (
+                    <select 
+                        className="border rounded px-2 py-1 text-sm"
+                        value={editForm.status}
+                        onChange={(e) => setEditForm({...editForm, status: e.target.value})}
+                    >
+                        <option value="OPEN">OPEN</option>
+                        <option value="PAID">PAID</option>
+                        <option value="DISMISSED">DISMISSED</option>
+                    </select>
+                  ) : (
+                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${t.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        {t.status}
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  {editingId === t.ticket_id ? (
+                    <div className="flex justify-end gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => handleUpdateTicket(t.ticket_id)}><Save size={16} className="text-green-600"/></Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}><X size={16} className="text-red-600"/></Button>
+                    </div>
+                  ) : (
+                    <Button size="sm" variant="ghost" onClick={() => startEditing(t)}><Edit size={16}/></Button>
+                  )}
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </CardContent>
     </Card>
   );
 
+  const renderReport = () => (
+    <Card className="animate-in fade-in duration-500">
+        <CardHeader>
+            <CardTitle>Violation Summary Report</CardTitle>
+            <CardDescription>Comprehensive list of issued tickets.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Ticket No.</TableHead>
+                        <TableHead>Driver</TableHead>
+                        <TableHead className="text-right">Status</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {tickets.map((t) => (
+                        <TableRow key={t.ticket_id}>
+                            <TableCell className="text-xs">{t.date_issued}</TableCell>
+                            <TableCell className="font-medium">{t.ticket_number}</TableCell>
+                            <TableCell>{t.first_name} {t.last_name}</TableCell>
+                            <TableCell className="text-right font-bold text-xs">
+                                {t.status}
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </CardContent>
+    </Card>
+  )
+
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Sidebar */}
       <aside className="w-64 bg-card border-r border-border flex flex-col sticky top-0 h-screen">
         <div className="p-6 border-b border-border flex items-center gap-2">
           <Shield className="text-primary" />
@@ -248,21 +344,28 @@ function Officer() {
             <Plus size={18}/> Create Ticket
           </Button>
           <Button 
-            variant={activeTab === "history" ? "secondary" : "ghost"} 
+            variant={activeTab === "edit" ? "secondary" : "ghost"} 
             className="w-full justify-start gap-2"
-            onClick={() => setActiveTab("history")}
+            onClick={() => setActiveTab("edit")}
           >
-            <FileText size={18}/> Ticket History
+            <Edit size={18}/> Edit Ticket
+          </Button>
+          <Button 
+            variant={activeTab === "report" ? "secondary" : "ghost"} 
+            className="w-full justify-start gap-2"
+            onClick={() => setActiveTab("report")}
+          >
+            <FileText size={18}/> View Report
           </Button>
         </nav>
 
         <div className="p-4 border-t border-border">
           <div className="flex items-center gap-2 mb-4 px-2">
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold">
-              {user?.username?.[0].toUpperCase()}
+            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold uppercase">
+              {user?.username?.[0]}
             </div>
             <div>
-              <p className="text-xs font-bold">{user?.username}</p>
+              <p className="text-xs font-bold truncate w-32">{user?.first_name} {user?.last_name}</p>
               <p className="text-[10px] text-muted-foreground uppercase">Traffic Officer</p>
             </div>
           </div>
@@ -272,16 +375,15 @@ function Officer() {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 p-8 overflow-auto">
         <header className="mb-8">
-          <h1 className="text-3xl font-bold capitalize">{activeTab.replace("-", " ")}</h1>
-          <p className="text-muted-foreground">Manage and issue traffic violation reports.</p>
+          <h1 className="text-3xl font-bold capitalize tracking-tight">{activeTab.replace("-", " ")} Overview</h1>
         </header>
 
         {activeTab === "dashboard" && renderDashboard()}
         {activeTab === "create" && renderCreateForm()}
-        {activeTab === "history" && renderHistory()}
+        {activeTab === "edit" && renderEditTickets()}
+        {activeTab === "report" && renderReport()}
       </main>
     </div>
   );

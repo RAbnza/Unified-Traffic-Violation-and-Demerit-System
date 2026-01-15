@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 
+
 function Login() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
@@ -14,7 +15,9 @@ function Login() {
     e?.preventDefault?.();
     setError("");
     setLoading(true);
+    
     try {
+      //comment from here.
           const users = {
       superadmin: {
         user_id: 1,
@@ -31,6 +34,14 @@ function Login() {
         last_name: "Doe",
         role_name: "Officer",
         redirect: "/officer",
+      },
+      auditor: {
+        user_id: 2,
+        username: "auditor",
+        first_name: "John",
+        last_name: "Doe",
+        role_name: "Auditor",
+        redirect: "/auditor",
       },
       lguadmin: {
         user_id: 4,
@@ -57,7 +68,8 @@ function Login() {
       navigate(mockUser.redirect);
     } else {
       setError("Invalid credentials. Try 'superadmin' and 'password'");
-    }
+    } //to here.
+    //vv uncomment for backend testing.D
       /*const res = await fetch("http://localhost:3000/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
