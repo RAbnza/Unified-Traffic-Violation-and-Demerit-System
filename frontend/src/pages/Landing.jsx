@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Shield, AlertTriangle, Users, FileText, BarChart3, CheckCircle, Moon, Sun } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Shield, AlertTriangle, Users, FileText, BarChart3, CheckCircle, Moon, Sun, ArrowRight } from "lucide-react";
 
 function Landing() {
   const [message, setMessage] = useState("");
   const [theme, setTheme] = useState("light");
+  const [isVisible, setIsVisible] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Trigger animations after mount
+    setIsVisible(true);
+    
     fetch("http://localhost:3000/api/test")
       .then((res) => res.json())
       .then((data) => setMessage(data.message))
@@ -43,6 +48,28 @@ function Landing() {
       return null;
     }
   }, []);
+
+  // Navigate to the correct dashboard based on user role
+  const handleDashboardClick = () => {
+    if (isLoggedIn && authUser?.role_name) {
+      const role = authUser.role_name.toLowerCase();
+      if (role === "super admin") {
+        navigate("/superadmin");
+      } else if (role === "officer") {
+        navigate("/officer");
+      } else if (role === "auditor") {
+        navigate("/auditor");
+      } else if (role === "lgu admin") {
+        navigate("/lgu-admin");
+      } else if (role === "lgu staff") {
+        navigate("/lgu-staff");
+      } else {
+        navigate("/login");
+      }
+    } else {
+      navigate("/login");
+    }
+  };
 
   const features = [
     {
@@ -87,10 +114,10 @@ function Landing() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 text-foreground transition-colors">
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 backdrop-blur-xl bg-background/80 border-b border-border/50">
+      <nav className={`sticky top-0 z-50 backdrop-blur-xl bg-background/80 border-b border-border/50 transition-all duration-500 ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+          <div className="flex items-center gap-3 group cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center transition-transform group-hover:scale-110 group-hover:rotate-3">
               <Shield className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -106,14 +133,15 @@ function Landing() {
               variant="ghost"
               size="icon"
               onClick={toggleTheme}
-              className="rounded-full"
+              className="rounded-full transition-transform hover:scale-110 hover:rotate-12"
             >
               {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </Button>
             
             {isLoggedIn ? (
-              <Button onClick={() => navigate("/test")} className="font-semibold">
-                {authUser?.username ? `Welcome, ${authUser.username}` : "Dashboard"}
+              <Button onClick={handleDashboardClick} className="font-semibold group">
+                <span>Go to Dashboard</span>
+                <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
               </Button>
             ) : (
               <Button onClick={() => navigate("/login")} className="font-semibold">
@@ -125,48 +153,124 @@ function Landing() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden min-h-screen flex items-center justify-center">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 pointer-events-none" />
-        <div className="max-w-7xl mx-auto px-6 py-20">
-          <div className="text-center max-w-5xl mx-auto relative">
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold mb-8 bg-gradient-to-br from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent leading-tight">
-              A Unified Digital Traffic Violation and Demerit System for LGUs
-            </h1>
-            
-            <p className="text-lg md:text-xl lg:text-2xl text-muted-foreground mb-12 leading-relaxed max-w-4xl mx-auto">
-              A secure and centralized platform designed to modernize traffic enforcement, improve record management, and support efficient data-driven decision-making across Local Government Units.
-            </p>
-            
-            <div className="flex flex-wrap items-center justify-center gap-4">
-              <Button size="lg" onClick={() => navigate("/login")} className="text-base font-semibold px-8 py-6 text-lg h-auto">
-                LOGIN NOW
-              </Button>
-              <Button size="lg" variant="outline" onClick={() => navigate("/contact")} className="text-base font-semibold px-8 py-6 text-lg h-auto">
-                CONTACT ADMIN
-              </Button>
-            </div>
-
-            {message && (
-              <div className="mt-12 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-card border border-border text-sm">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-muted-foreground">Backend Status:</span>
-                <span className="font-medium">{message}</span>
+      <section className="relative overflow-hidden min-h-[85vh] flex items-center">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
+        {/* Subtle background shapes */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-20 -right-20 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 -left-20 w-72 h-72 bg-accent/10 rounded-full blur-3xl" />
+        </div>
+        
+        <div className="max-w-7xl mx-auto px-6 py-16 w-full">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left Content */}
+            <div className={`transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-medium text-primary mb-6">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                Available for LGUs Nationwide
               </div>
-            )}
+              
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-6 leading-tight text-foreground">
+                Unified Traffic Violation & Demerit System
+                <span className="block text-primary mt-2">for Local Government Units</span>
+              </h1>
+              
+              <p className={`text-base lg:text-lg text-muted-foreground mb-8 leading-relaxed max-w-xl transition-all duration-1000 delay-200 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+                A secure, centralized platform designed to modernize traffic enforcement, streamline record management, and enable data-driven decisions across LGUs.
+              </p>
+              
+              <div className={`flex flex-wrap items-center gap-3 transition-all duration-1000 delay-400 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+                <Button 
+                  size="lg" 
+                  onClick={handleDashboardClick} 
+                  className="font-semibold group transition-all hover:scale-105 hover:shadow-lg hover:shadow-primary/20"
+                >
+                  {isLoggedIn ? "Go to Dashboard" : "Get Started"}
+                  <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
+                </Button>
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  onClick={() => navigate("/contact")} 
+                  className="font-semibold transition-all hover:scale-105"
+                >
+                  Contact Us
+                </Button>
+              </div>
+
+              {message && (
+                <div className="mt-8 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card border border-border text-xs">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-muted-foreground">API Status:</span>
+                  <span className="font-medium text-green-600 dark:text-green-400">{message}</span>
+                </div>
+              )}
+            </div>
+            
+            {/* Right Visual */}
+            <div className={`hidden lg:block transition-all duration-1000 delay-300 ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-10 opacity-0'}`}>
+              <div className="relative">
+                {/* Main card mockup */}
+                <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 transform rotate-1 hover:rotate-0 transition-transform duration-500">
+                  <div className="flex items-center gap-3 mb-4 pb-4 border-b border-border">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                      <Shield className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-sm">UTVDS Dashboard</div>
+                      <div className="text-xs text-muted-foreground">Traffic Management Portal</div>
+                    </div>
+                  </div>
+                  
+                  {/* Mock stats */}
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    {[
+                      { label: "Active Tickets", value: "234" },
+                      { label: "This Month", value: "1,847" },
+                      { label: "Resolved", value: "89%" }
+                    ].map((item, i) => (
+                      <div key={i} className="bg-muted/50 rounded-lg p-3 text-center">
+                        <div className="text-lg font-bold text-primary">{item.value}</div>
+                        <div className="text-[10px] text-muted-foreground">{item.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Mock chart area */}
+                  <div className="bg-muted/30 rounded-lg p-4 h-32 flex items-end justify-between gap-1">
+                    {[40, 65, 45, 80, 55, 70, 60, 75, 50, 85, 65, 90].map((h, i) => (
+                      <div 
+                        key={i} 
+                        className="bg-primary/60 rounded-t w-full transition-all hover:bg-primary"
+                        style={{ height: `${h}%` }}
+                      />
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Floating badge */}
+                <div className="absolute -top-4 -right-4 bg-green-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg animate-bounce">
+                  Live System
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Stats Section */}
-      <section className="py-16 border-y border-border bg-card/30 backdrop-blur-sm">
+      <section className="py-12 border-y border-border bg-card/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {stats.map((stat, idx) => (
-              <div key={idx} className="text-center">
-                <div className="text-4xl md:text-5xl font-bold bg-gradient-to-br from-primary to-accent bg-clip-text text-transparent mb-2">
+              <div 
+                key={idx} 
+                className="text-center group cursor-default py-4"
+              >
+                <div className="text-3xl md:text-4xl font-bold text-primary mb-1 transition-transform group-hover:scale-110">
                   {stat.value}
                 </div>
-                <div className="text-sm text-muted-foreground font-medium">{stat.label}</div>
+                <div className="text-sm text-muted-foreground">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -174,31 +278,33 @@ function Landing() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 md:py-32">
+      <section className="py-16 md:py-24">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">
+          <div className="text-center mb-12">
+            <h2 className="text-2xl md:text-3xl font-bold mb-3">
               Powerful Features for Modern Traffic Management
             </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Everything you need to manage traffic violations, track demerit points, and maintain road safety standards.
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Everything you need to manage traffic violations, track demerit points, and maintain road safety.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((feature, idx) => {
               const Icon = feature.icon;
               return (
-                <div
+                <Card
                   key={idx}
-                  className="group relative p-8 rounded-2xl bg-card border border-border hover:border-primary/50 transition-all hover:shadow-lg hover:-translate-y-1"
+                  className="group relative overflow-hidden hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-default"
                 >
-                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-                    <Icon className="w-7 h-7 text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
-                  <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
-                </div>
+                  <CardContent className="p-6">
+                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 transition-all duration-300 group-hover:bg-primary group-hover:scale-105">
+                      <Icon className="w-6 h-6 text-primary group-hover:text-white transition-colors" />
+                    </div>
+                    <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
+                  </CardContent>
+                </Card>
               );
             })}
           </div>
@@ -206,20 +312,33 @@ function Landing() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 md:py-32 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/10 to-primary/20 pointer-events-none" />
-        <div className="max-w-4xl mx-auto px-6 text-center relative">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">
-            Ready to Modernize Traffic Management?
+      <section className="py-16 md:py-20 relative overflow-hidden bg-primary/5">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/2 left-1/4 w-48 h-48 bg-primary/10 rounded-full blur-3xl" />
+          <div className="absolute top-1/3 right-1/4 w-32 h-32 bg-accent/10 rounded-full blur-3xl" />
+        </div>
+        <div className="max-w-3xl mx-auto px-6 text-center relative">
+          <h2 className="text-2xl md:text-3xl font-bold mb-4">
+            Ready to Modernize Your Traffic Management?
           </h2>
-          <p className="text-xl text-muted-foreground mb-10">
-            Join leading enforcement agencies in creating safer roads through data-driven insights.
+          <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
+            Join leading LGUs in creating safer roads through efficient, data-driven traffic enforcement.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <Button size="lg" onClick={() => navigate("/login")} className="text-base font-semibold">
-              Access Portal
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Button 
+              size="lg" 
+              onClick={handleDashboardClick} 
+              className="font-semibold group transition-all hover:scale-105"
+            >
+              {isLoggedIn ? "Go to Dashboard" : "Access Portal"}
+              <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
             </Button>
-            <Button size="lg" variant="outline" onClick={() => navigate("/contact")} className="text-base font-semibold">
+            <Button 
+              size="lg" 
+              variant="outline" 
+              onClick={() => navigate("/contact")} 
+              className="font-semibold transition-all hover:scale-105"
+            >
               Contact Support
             </Button>
           </div>
@@ -227,26 +346,23 @@ function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border bg-card/50 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-6 py-12">
+      <footer className="border-t border-border bg-card/50">
+        <div className="max-w-7xl mx-auto px-6 py-10">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
-            <div className="col-span-2">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                  <Shield className="w-6 h-6 text-white" />
+            <div className="md:col-span-2">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                  <Shield className="w-4 h-4 text-white" />
                 </div>
-                <div>
-                  <h3 className="font-bold text-lg">UTVDS</h3>
-                  <p className="text-xs text-muted-foreground">Traffic Management System</p>
-                </div>
+                <span className="font-bold">UTVDS</span>
               </div>
-              <p className="text-sm text-muted-foreground max-w-md">
-                A comprehensive platform for managing traffic violations, demerit points, and driver licensing across multiple enforcement agencies.
+              <p className="text-sm text-muted-foreground max-w-sm">
+                A comprehensive platform for managing traffic violations, demerit points, and driver licensing across LGUs.
               </p>
             </div>
             
             <div>
-              <h4 className="font-semibold mb-3">Quick Links</h4>
+              <h4 className="font-semibold text-sm mb-3">Quick Links</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><a href="#" className="hover:text-primary transition-colors">About</a></li>
                 <li><a href="#" className="hover:text-primary transition-colors">Features</a></li>
@@ -256,17 +372,16 @@ function Landing() {
             </div>
             
             <div>
-              <h4 className="font-semibold mb-3">Legal</h4>
+              <h4 className="font-semibold text-sm mb-3">Legal</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><a href="#" className="hover:text-primary transition-colors">Privacy Policy</a></li>
                 <li><a href="#" className="hover:text-primary transition-colors">Terms of Service</a></li>
                 <li><a href="#" className="hover:text-primary transition-colors">Security</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Compliance</a></li>
               </ul>
             </div>
           </div>
           
-          <div className="pt-8 border-t border-border text-center text-sm text-muted-foreground">
+          <div className="pt-6 border-t border-border text-center text-xs text-muted-foreground">
             <p>© {new Date().getFullYear()} Unified Traffic Violation & Demerit System. All rights reserved.</p>
           </div>
         </div>
