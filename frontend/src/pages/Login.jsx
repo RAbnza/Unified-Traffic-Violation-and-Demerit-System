@@ -15,7 +15,50 @@ function Login() {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:3000/api/auth/login", {
+          const users = {
+      superadmin: {
+        user_id: 1,
+        username: "superadmin",
+        first_name: "Andrew",
+        last_name: "Smith",
+        role_name: "Super Admin",
+        redirect: "/superadmin",
+      },
+      officer1: {
+        user_id: 2,
+        username: "officer1",
+        first_name: "John",
+        last_name: "Doe",
+        role_name: "Officer",
+        redirect: "/officer",
+      },
+      lguadmin: {
+        user_id: 4,
+        username: "lguadmin",
+        first_name: "Luke",
+        last_name: "Smith",
+        role_name: "LGU Admin",
+        redirect: "/lgu-admin",
+      },
+      lgustaff: {
+        user_id: 5,
+        username: "lgustaff",
+        first_name: "Michelle",
+        last_name: "Smith",
+        role_name: "LGU Staff",
+        redirect: "/lgu-staff",
+      },
+    };
+
+    if (users[username] && password === "password") {
+      const mockUser = users[username];
+      localStorage.setItem("authToken", "mock-jwt-token-12345");
+      localStorage.setItem("authUser", JSON.stringify(mockUser));
+      navigate(mockUser.redirect);
+    } else {
+      setError("Invalid credentials. Try 'superadmin' and 'password'");
+    }
+      /*const res = await fetch("http://localhost:3000/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
@@ -31,6 +74,7 @@ function Login() {
         localStorage.setItem("authUser", JSON.stringify(payload.data.user));
       }
       navigate("/test");
+      */
     } catch (err) {
       setError(err.message || "Login failed");
     } finally {

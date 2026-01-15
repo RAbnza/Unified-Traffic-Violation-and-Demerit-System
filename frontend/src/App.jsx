@@ -1,16 +1,25 @@
 import { Routes, Route } from "react-router-dom";
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
-import TestPage from "@/pages/TestPage";
-import Contact from "@/pages/Contact"; // Add this
+import Contact from "@/pages/Contact";
+import SuperAdmin from "@/pages/SuperAdmin";
+import Officer from "@/pages/Officer";
+import LGUAdmin from "@/pages/LGUAdmin";
+import LGUStaff from "@/pages/LGUStaff";
+
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/test" element={<TestPage />} />
-      <Route path="/contact" element={<Contact />} /> {/* Add this */}
+      <Route path="/contact" element={<Contact />} />
+      
+      {/* Role-Based Routes */}
+      <Route path="/superadmin" element={<SuperAdmin />} />
+      <Route path="/officer" element={<Officer />} />
+      <Route path="/lgu-admin" element={<LGUAdmin />} />
+      <Route path="/lgu-staff" element={<LGUStaff />} />
     </Routes>
   );
 }

@@ -112,7 +112,7 @@ function Landing() {
             </Button>
             
             {isLoggedIn ? (
-              <Button onClick={() => navigate("/test")} className="font-semibold">
+              <Button onClick={() => navigate("/login")} className="font-semibold">
                 {authUser?.username ? `Welcome, ${authUser.username}` : "Dashboard"}
               </Button>
             ) : (
