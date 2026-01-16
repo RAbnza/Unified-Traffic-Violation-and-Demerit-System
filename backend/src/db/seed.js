@@ -6,311 +6,428 @@ import { hashPassword } from "../lib/auth.js";
 
 dotenv.config();
 
+// Configuration for Data Volume
+const CONFIG = {
+  DRIVERS_COUNT: 55,       // 50+ records
+  VEHICLES_COUNT: 60,      // 50+ records
+  TICKETS_COUNT: 45,       // 40+ records
+  PAYMENT_RATIO: 0.7,      // Approx 70% of tickets will be paid
+  LGUS_TO_GENERATE: 10,    // 10 LGUs
+  OFFICERS_PER_LGU: 3,     // 3 * 10 = 30 officers
+  STAFF_PER_LGU: 4         // 4 * 10 = 40 staff
+};
+
 async function getConn() {
   return mysql.createConnection({ ...getDbConfig(), multipleStatements: true });
 }
 
-async function selectId(conn, sql, params) {
-  const [rows] = await conn.execute(sql, params);
-  if (rows.length > 0) return Object.values(rows[0])[0];
-  return null;
+// Helper: Get a random element from an array
+function getRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
-async function upsertByUnique(conn, table, uniqueField, uniqueValue, data) {
-  const fields = Object.keys(data);
-  const placeholders = fields.map(() => "?").join(",");
-  const update = fields.map((f) => `${f}=VALUES(${f})`).join(",");
-  const sql = `INSERT INTO ${table} (${fields.join(",")}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${update}`;
-  await conn.execute(sql, fields.map((f) => data[f]));
-  // Fetch id after upsert using unique field
-  const id = await selectId(conn, `SELECT ${table.slice(0,1).toLowerCase()+table.slice(1)}_id FROM ${table} WHERE ${uniqueField}=? LIMIT 1`, [uniqueValue]);
-  return id;
+// Helper: Get random date within last year
+function getRandomDate(start = new Date(2025, 0, 1), end = new Date()) {
+  return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
 }
 
 async function run() {
-  logger.log("Seeding sample data...");
+  logger.log("Initializing Comprehensive Database Seeding for Unified Traffic Violation System...");
+  logger.log("Context: Philippine Local Government Units (LGUs)");
+  
   const conn = await getConn();
+  const passwordHash = await hashPassword("password"); // Uniform password for testing
+
   try {
     await conn.beginTransaction();
 
-    // 1) Roles
-    const adminRoleId = await upsertByUnique(conn, "Role", "role_name", "Super Admin", {
-      role_name: "Super Admin",
-      description: "System administrator",
-    });
-    const officerRoleId = await upsertByUnique(conn, "Role", "role_name", "Officer", {
-      role_name: "Officer",
-      description: "Traffic enforcement officer",
-    });
-    const auditorRoleId = await upsertByUnique(conn, "Role", "role_name", "Auditor", {
-      role_name: "Auditor",
-      description: "System auditor",
-    });
-    const lguAdminRoleId = await upsertByUnique(conn, "Role", "role_name", "LGU Admin", {
-      role_name: "LGU Admin",
-      description: "Local Government Unit administrator",
-    });
-    const lguStaffRoleId = await upsertByUnique(conn, "Role", "role_name", "LGU Staff", {
-      role_name: "LGU Staff",
-      description: "LGU staff for payments/reports",
-    });
-
-    // 2) LGU (select-by-name then insert if missing)
-    let lguId = await selectId(conn, "SELECT lgu_id FROM LGU WHERE name=? LIMIT 1", ["Metro City LGU"]);
-    if (!lguId) {
-      const [res] = await conn.execute(
-        "INSERT INTO LGU (name, province, region, contact_email, contact_number) VALUES (?,?,?,?,?)",
-        ["Metro City LGU", "Metro Province", "Region X", "contact@metro.example", "+63-900-000-0000"]
-      );
-      lguId = res.insertId;
-    }
-
-    // 3) Driver
-    let driverId = await selectId(conn, "SELECT driver_id FROM Driver WHERE license_number=? LIMIT 1", ["D-0012345"]);
-    if (!driverId) {
-      const [res] = await conn.execute(
-        "INSERT INTO Driver (license_number, first_name, last_name, address, birth_date, contact_number, email, license_status, demerit_points) VALUES (?,?,?,?,?,?,?,?,?)",
-        [
-          "D-0012345",
-          "John",
-          "Doe",
-          "123 Main St",
-          "1990-01-15",
-          "+63-900-111-2222",
-          "john.doe@example.com",
-          "ACTIVE",
-          0,
-        ]
-      );
-      driverId = res.insertId;
-    }
-
-    // 4) Vehicle
-    let vehicleId = await selectId(conn, "SELECT vehicle_id FROM Vehicle WHERE plate_number=? LIMIT 1", ["ABC-1234"]);
-    let ticketId = null; // Will be set later
-    if (!vehicleId) {
-      const [res] = await conn.execute(
-        "INSERT INTO Vehicle (plate_number, make, model, year, color, vehicle_type, driver_id) VALUES (?,?,?,?,?,?,?)",
-        ["ABC-1234", "Toyota", "Vios", 2020, "White", "Sedan", driverId]
-      );
-      vehicleId = res.insertId;
-    }
-
-    // 5) Users
-    let officerUserId = await selectId(conn, "SELECT user_id FROM User WHERE username=? LIMIT 1", ["officer1"]);
-    if (!officerUserId) {
-      const hashed = await hashPassword("password");
-      const [res] = await conn.execute(
-        "INSERT INTO User (username, password, first_name, last_name, email, contact_number, role_id) VALUES (?,?,?,?,?,?,?)",
-        ["officer1", hashed, "Olivia", "Officer", "officer1@example.com", "+63-900-333-4444", officerRoleId]
-      );
-      officerUserId = res.insertId;
-    }
-
-    let adminUserId = await selectId(conn, "SELECT user_id FROM User WHERE username=? LIMIT 1", ["superadmin"]);
-    if (!adminUserId) {
-      const hashed = await hashPassword("password");
-      const [res] = await conn.execute(
-        "INSERT INTO User (username, password, first_name, last_name, email, contact_number, role_id) VALUES (?,?,?,?,?,?,?)",
-        ["superadmin", hashed, "Alice", "SuperAdmin", "superadmin@example.com", "+63-900-555-6666", adminRoleId]
-      );
-      adminUserId = res.insertId;
-    }
-
-    // Auditor user
-    let auditorUserId = await selectId(conn, "SELECT user_id FROM User WHERE username=? LIMIT 1", ["auditor"]);
-    if (!auditorUserId) {
-      const hashed = await hashPassword("password");
-      const [res] = await conn.execute(
-        "INSERT INTO User (username, password, first_name, last_name, email, contact_number, role_id) VALUES (?,?,?,?,?,?,?)",
-        ["auditor", hashed, "Andy", "Auditor", "auditor@example.com", "+63-900-777-8888", auditorRoleId]
-      );
-      auditorUserId = res.insertId;
-    }
-
-    // LGU Admin user
-    let lguAdminUserId = await selectId(conn, "SELECT user_id FROM User WHERE username=? LIMIT 1", ["lguadmin"]);
-    if (!lguAdminUserId) {
-      const hashed = await hashPassword("password");
-      const [res] = await conn.execute(
-        "INSERT INTO User (username, password, first_name, last_name, email, contact_number, role_id) VALUES (?,?,?,?,?,?,?)",
-        ["lguadmin", hashed, "Lara", "LGUAdmin", "lguadmin@example.com", "+63-900-999-0000", lguAdminRoleId]
-      );
-      lguAdminUserId = res.insertId;
-    }
-
-    // LGU Staff user
-    let lguStaffUserId = await selectId(conn, "SELECT user_id FROM User WHERE username=? LIMIT 1", ["lgustaff"]);
-    if (!lguStaffUserId) {
-      const hashed = await hashPassword("password");
-      const [res] = await conn.execute(
-        "INSERT INTO User (username, password, first_name, last_name, email, contact_number, role_id) VALUES (?,?,?,?,?,?,?)",
-        ["lgustaff", hashed, "Sam", "LGUStaff", "lgustaff@example.com", "+63-901-111-2222", lguStaffRoleId]
-      );
-      lguStaffUserId = res.insertId;
-    }
-
-    // 6) OfficerAssignment
-    const [assignRows] = await conn.execute(
-      "SELECT assignment_id FROM OfficerAssignment WHERE user_id=? AND lgu_id=? AND status='ACTIVE' LIMIT 1",
-      [officerUserId, lguId]
-    );
-    if (assignRows.length === 0) {
-      await conn.execute(
-        "INSERT INTO OfficerAssignment (user_id, lgu_id, date_assigned, status) VALUES (?,?,CURDATE(),'ACTIVE')",
-        [officerUserId, lguId]
-      );
-    }
-
-    // Update users with lgu_id
-    await conn.execute("UPDATE User SET lgu_id = ? WHERE user_id IN (?, ?, ?, ?)", 
-      [lguId, officerUserId, lguAdminUserId, lguStaffUserId, auditorUserId]);
-
-    // 7) ViolationType - Add multiple violation types
-    const violationTypes = [
-      ["Overspeeding", "Exceeding posted speed limit", 1000.0, 3],
-      ["Illegal Parking", "Parking in no-parking zone", 500.0, 1],
-      ["Running Red Light", "Failing to stop at red traffic signal", 1500.0, 4],
-      ["No Helmet", "Motorcycle rider without helmet", 750.0, 2],
-      ["No Seatbelt", "Driver or passenger not wearing seatbelt", 500.0, 1],
-      ["Driving Without License", "Operating vehicle without valid license", 3000.0, 6],
-      ["Expired Registration", "Operating vehicle with expired registration", 2000.0, 2],
-      ["Reckless Driving", "Driving in a reckless manner", 2500.0, 5],
-      ["Illegal U-Turn", "Making U-turn in prohibited area", 500.0, 1],
-      ["Obstruction", "Causing traffic obstruction", 750.0, 2],
-    ];
+    // ---------------------------------------------------------
+    // 1. ROLES & SYSTEM CONFIGURATION
+    // ---------------------------------------------------------
+    logger.info("--> Seeding Roles and System Configuration...");
     
-    for (const [name, desc, fine, points] of violationTypes) {
+    // Using ON DUPLICATE KEY UPDATE to ensure idempotency
+    const rolesData = [
+      [1, "Super Admin", "Central system administrator with full access"],
+      [2, "Officer", "Field traffic enforcement officer who issues tickets"],
+      [3, "Auditor", "Compliance officer with read-only access to logs"],
+      [4, "LGU Admin", "Administrator for a specific Local Government Unit"],
+      [5, "LGU Staff", "Back-office staff for payment processing and reports"]
+    ];
+
+    for (const [id, name, desc] of rolesData) {
+      await conn.execute(
+        `INSERT INTO Role (role_id, role_name, description) VALUES (?, ?, ?) 
+         ON DUPLICATE KEY UPDATE role_name=VALUES(role_name), description=VALUES(description)`,
+        [id, name, desc]
+      );
+    }
+
+    // Default Demerit Threshold
+    await conn.execute(
+      `INSERT INTO SystemConfig (\`key\`, \`value\`, description) 
+       VALUES ('demerit_threshold', '10', 'Suspension threshold according to RA 10930') 
+       ON DUPLICATE KEY UPDATE \`value\`=VALUES(\`value\`)`
+    );
+
+    // ---------------------------------------------------------
+    // 2. LOCAL GOVERNMENT UNITS (10 Distinct Metro/Regional Cities)
+    // ---------------------------------------------------------
+    logger.info(`--> Seeding ${CONFIG.LGUS_TO_GENERATE} Local Government Units...`);
+    
+    const phCities = [
+      ["City of Manila", "Metro Manila", "NCR", "admin@manila.gov.ph", "(02) 8527-0900"],
+      ["Quezon City LGU", "Metro Manila", "NCR", "traffic@quezoncity.gov.ph", "(02) 8988-4242"],
+      ["Makati City Hall", "Metro Manila", "NCR", "mapsa@makati.gov.ph", "(02) 8870-1000"],
+      ["Taguig City", "Metro Manila", "NCR", "tmo@taguig.gov.ph", "(02) 8555-7800"],
+      ["Pasig City Traffic", "Metro Manila", "NCR", "tpmo@pasig.gov.ph", "(02) 8643-1111"],
+      ["Cebu City LGU", "Cebu", "Region VII", "ccto@cebucity.gov.ph", "(032) 255-6984"],
+      ["Davao City Govt", "Davao del Sur", "Region XI", "cttmo@davaocity.gov.ph", "(082) 224-1313"],
+      ["Mandaluyong City", "Metro Manila", "NCR", "traffic@mandaluyong.gov.ph", "(02) 8532-5001"],
+      ["San Juan City", "Metro Manila", "NCR", "pos@sanjuan.gov.ph", "(02) 8723-8813"],
+      ["Marikina City", "Metro Manila", "NCR", "mctmo@marikina.gov.ph", "(02) 8646-2360"]
+    ];
+
+    // Cache LGU IDs for mapping users later
+    const lguMap = []; 
+
+    for (const [name, prov, reg, email, contact] of phCities) {
+      await conn.execute(
+        `INSERT INTO LGU (name, province, region, contact_email, contact_number) VALUES (?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE name=name`, 
+        [name, prov, reg, email, contact]
+      );
+      
+      const [rows] = await conn.execute("SELECT lgu_id FROM LGU WHERE name = ? LIMIT 1", [name]);
+      lguMap.push({ id: rows[0].lgu_id, name });
+    }
+
+    // ---------------------------------------------------------
+    // 3. VIOLATION TYPES (Philippine Context - LTO/MMDA style)
+    // ---------------------------------------------------------
+    logger.info("--> Seeding Violation Catalog...");
+
+    const violationCatalog = [
+      ["Disregarding Traffic Sign", "Failure to follow traffic signage", 150.00, 1],
+      ["Number Coding Violation", "Driving prohibited vehicle during peak hours", 300.00, 1],
+      ["Overspeeding", "Exceeding imposed speed limits", 1200.00, 3],
+      ["Reckless Driving", "Driving without regard for safety", 2000.00, 5],
+      ["No Helmet", "Failure to wear standard protective helmet", 1500.00, 2],
+      ["Driving Without License", "Operating a vehicle with no valid license", 3000.00, 5],
+      ["Illegal Parking", "Parking in a tow-away or prohibited zone", 1000.00, 1],
+      ["Obstruction of Traffic", "Blocking free flow of traffic", 500.00, 1],
+      ["Seat Belt Law", "Failure to wear seat belt", 1000.00, 1],
+      ["Distracted Driving", "Using mobile phone while driving", 5000.00, 4]
+    ];
+
+    for (const [name, desc, fine, points] of violationCatalog) {
       await conn.execute(
         `INSERT INTO ViolationType (name, description, fine_amount, demerit_point) 
-         VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE description=VALUES(description), fine_amount=VALUES(fine_amount), demerit_point=VALUES(demerit_point)`,
+         VALUES (?, ?, ?, ?) 
+         ON DUPLICATE KEY UPDATE fine_amount=VALUES(fine_amount)`,
         [name, desc, fine, points]
       );
     }
-    
-    let violationTypeId = await selectId(conn, "SELECT violation_type_id FROM ViolationType WHERE name=? LIMIT 1", ["Overspeeding"]);
 
-    // Add more drivers
-    const drivers = [
-      ["D-0012345", "John", "Doe", "123 Main St", "1990-01-15", "+63-900-111-2222", "john.doe@example.com"],
-      ["D-0023456", "Jane", "Smith", "456 Oak Ave", "1985-05-20", "+63-900-222-3333", "jane.smith@example.com"],
-      ["D-0034567", "Robert", "Johnson", "789 Pine Rd", "1992-08-10", "+63-900-333-4444", "robert.j@example.com"],
-      ["D-0045678", "Maria", "Garcia", "321 Elm St", "1988-12-25", "+63-900-444-5555", "maria.g@example.com"],
-      ["D-0056789", "James", "Williams", "654 Cedar Ln", "1995-03-18", "+63-900-555-6666", "james.w@example.com"],
-    ];
-    
-    const driverIds = [];
-    for (const [license, first, last, addr, bday, phone, email] of drivers) {
-      let id = await selectId(conn, "SELECT driver_id FROM Driver WHERE license_number=? LIMIT 1", [license]);
-      if (!id) {
-        const [res] = await conn.execute(
-          "INSERT INTO Driver (license_number, first_name, last_name, address, birth_date, contact_number, email, license_status, demerit_points) VALUES (?,?,?,?,?,?,?, 'ACTIVE', 0)",
-          [license, first, last, addr, bday, phone, email]
-        );
-        id = res.insertId;
-      }
-      driverIds.push(id);
-    }
-    driverId = driverIds[0];
+    // ---------------------------------------------------------
+    // 4. USERS & OFFICER ASSIGNMENTS
+    // ---------------------------------------------------------
+    // Requirements: 1 Super Admin, 1 Auditor, 30+ Officers, 40+ Staff
+    logger.info("--> Seeding User Accounts & Officer Assignments...");
 
-    // Add more vehicles
-    const vehicles = [
-      ["ABC-1234", "Toyota", "Vios", 2020, "White", "Sedan", driverIds[0]],
-      ["XYZ-5678", "Honda", "Civic", 2019, "Black", "Sedan", driverIds[1]],
-      ["DEF-9012", "Mitsubishi", "Montero", 2021, "Silver", "SUV", driverIds[2]],
-      ["GHI-3456", "Ford", "Ranger", 2018, "Red", "Pickup", driverIds[3]],
-      ["JKL-7890", "Suzuki", "Swift", 2022, "Blue", "Hatchback", driverIds[4]],
-      ["MNO-1357", "Toyota", "Fortuner", 2020, "Gray", "SUV", driverIds[0]],
-    ];
-    
-    const vehicleIds = [];
-    for (const [plate, make, model, year, color, type, ownerDriverId] of vehicles) {
-      let id = await selectId(conn, "SELECT vehicle_id FROM Vehicle WHERE plate_number=? LIMIT 1", [plate]);
-      if (!id) {
-        const [res] = await conn.execute(
-          "INSERT INTO Vehicle (plate_number, make, model, year, color, vehicle_type, driver_id) VALUES (?,?,?,?,?,?,?)",
-          [plate, make, model, year, color, type, ownerDriverId]
-        );
-        id = res.insertId;
-      }
-      vehicleIds.push(id);
-    }
-    vehicleId = vehicleIds[0];
+    const userQueries = [];
+    const assignmentQueries = [];
 
-    // 8) Create multiple tickets
-    const ticketData = [
-      ["TKT-0001", "Main Ave & 1st St", "PAID", driverIds[0], vehicleIds[0]],
-      ["TKT-0002", "Highway 5 KM 23", "OPEN", driverIds[1], vehicleIds[1]],
-      ["TKT-0003", "Downtown Plaza", "OPEN", driverIds[2], vehicleIds[2]],
-      ["TKT-0004", "City Hall Parking", "DISMISSED", driverIds[3], vehicleIds[3]],
-      ["TKT-0005", "National Road", "OPEN", driverIds[4], vehicleIds[4]],
-      ["TKT-0006", "Market Street", "PAID", driverIds[0], vehicleIds[5]],
-      ["TKT-0007", "School Zone Area", "OPEN", driverIds[1], vehicleIds[1]],
-      ["TKT-0008", "Intersection A", "OPEN", driverIds[2], vehicleIds[2]],
-    ];
-    
-    const ticketIds = [];
-    for (let i = 0; i < ticketData.length; i++) {
-      const [ticketNum, location, status, dId, vId] = ticketData[i];
-      let id = await selectId(conn, "SELECT ticket_id FROM Ticket WHERE ticket_number=? LIMIT 1", [ticketNum]);
-      if (!id) {
-        // Vary dates
-        const date = new Date();
-        date.setDate(date.getDate() - i * 3);
-        const [res] = await conn.execute(
-          "INSERT INTO Ticket (ticket_number, date_issued, time_issued, location, status, driver_id, vehicle_id, issued_by, lgu_id) VALUES (?,?,?,?,?,?,?,?,?)",
-          [ticketNum, date.toISOString().slice(0, 10), date.toISOString().slice(11, 19), location, status, dId, vId, officerUserId, lguId]
-        );
-        id = res.insertId;
-      }
-      ticketIds.push(id);
-    }
-    ticketId = ticketIds[0];
-
-    // 9) TicketViolation - assign violations to tickets
-    const violationTypeIds = [];
-    const [vtRows] = await conn.execute("SELECT violation_type_id FROM ViolationType ORDER BY violation_type_id LIMIT 10");
-    vtRows.forEach(r => violationTypeIds.push(r.violation_type_id));
-    
-    for (let i = 0; i < ticketIds.length; i++) {
-      const tId = ticketIds[i];
-      const vTypeId = violationTypeIds[i % violationTypeIds.length];
-      const [tvRows] = await conn.execute(
-        "SELECT ticket_violation_id FROM TicketViolation WHERE ticket_id=? LIMIT 1",
-        [tId]
+    // Helper to insert user and get ID
+    const createUser = async (username, first, last, email, roleId, lguId = null) => {
+      // Create User
+      const [uRes] = await conn.execute(
+        `INSERT INTO User (username, password, first_name, last_name, email, contact_number, role_id, lgu_id) 
+         VALUES (?, ?, ?, ?, ?, '+639170000000', ?, ?)
+         ON DUPLICATE KEY UPDATE role_id=VALUES(role_id)`,
+        [username, passwordHash, first, last, email, roleId, lguId]
       );
-      if (tvRows.length === 0) {
-        await conn.execute("INSERT INTO TicketViolation (ticket_id, violation_type_id) VALUES (?,?)", [tId, vTypeId]);
+      
+      let userId = uRes.insertId;
+      if (userId === 0) { // If update happened, fetch ID
+        const [rows] = await conn.execute("SELECT user_id FROM User WHERE username = ?", [username]);
+        userId = rows[0].user_id;
+      }
+      return userId;
+    };
+
+    // 4.1. Core Admins
+    await createUser("superadmin", "Juan", "Dela Cruz", "admin@central.gov.ph", 1, null);
+    await createUser("auditor", "Maria", "Santos", "audit@coa.gov.ph", 3, null);
+
+    const lguStaffIds = []; // Cache for payment processing
+    const officerIds = [];  // Cache for ticket issuance
+
+    // 4.2. LGU Specific Users (Admins, Officers, Staff)
+    // Loop through 10 LGUs
+    for (const lgu of lguMap) {
+      const cityTag = lgu.name.split(' ')[0].toLowerCase().replace(/[^a-z]/g, '');
+
+      // A. Create LGU Admin (1 per LGU)
+      await createUser(
+        `admin_${cityTag}`, 
+        "Admin", 
+        lgu.name.split(' ')[0], 
+        `admin.${cityTag}@lgu.ph`, 
+        4, 
+        lgu.id
+      );
+
+      // B. Create Officers (Configured amount: 3 per LGU)
+      for (let i = 1; i <= CONFIG.OFFICERS_PER_LGU; i++) {
+        const username = `officer_${cityTag}${i}`;
+        const uid = await createUser(
+          username, 
+          "Officer", 
+          `${cityTag.toUpperCase()}-${i}`, 
+          `${username}@lgu.ph`, 
+          2, 
+          lgu.id
+        );
+        
+        officerIds.push({ userId: uid, lguId: lgu.id });
+
+        // Create Active Assignment
+        await conn.execute(
+          `INSERT INTO OfficerAssignment (user_id, lgu_id, date_assigned, status) 
+           VALUES (?, ?, CURDATE(), 'ACTIVE')
+           ON DUPLICATE KEY UPDATE status='ACTIVE'`, 
+           [uid, lgu.id]
+        );
+      }
+
+      // C. Create Staff (Configured amount: 4 per LGU)
+      for (let i = 1; i <= CONFIG.STAFF_PER_LGU; i++) {
+        const username = `staff_${cityTag}${i}`;
+        const uid = await createUser(
+          username, 
+          "Staff", 
+          `${cityTag.toUpperCase()}-${i}`, 
+          `${username}@lgu.ph`, 
+          5, 
+          lgu.id
+        );
+        lguStaffIds.push({ userId: uid, lguId: lgu.id });
       }
     }
 
-    // 10) Payment for paid tickets
-    for (let i = 0; i < ticketData.length; i++) {
-      if (ticketData[i][2] === "PAID") {
-        const tId = ticketIds[i];
-        const [payRows] = await conn.execute("SELECT payment_id FROM Payment WHERE ticket_id=? LIMIT 1", [tId]);
-        if (payRows.length === 0) {
-          const receiptNum = `RCT-${String(i + 1).padStart(4, "0")}`;
-          await conn.execute(
-            "INSERT INTO Payment (ticket_id, amount_paid, payment_date, payment_method, receipt_number, processed_by) VALUES (?,?,?,?,?,?)",
-            [tId, 1000.0, new Date(), "CASH", receiptNum, lguStaffUserId]
-          );
-        }
+    // ---------------------------------------------------------
+    // 5. DRIVERS (50+ Records - Realistic PH Profiles)
+    // ---------------------------------------------------------
+    logger.info(`--> Seeding ${CONFIG.DRIVERS_COUNT} Driver Records...`);
+    
+    const driverFirstNames = ["Jose", "Maria", "Juan", "Pedro", "Antonio", "Luis", "Angel", "Miguel", "Andrea", "Sofia", "Gabriel", "Ramon", "Fernando", "Elena", "Clara"];
+    const driverLastNames = ["Garcia", "Reyes", "Cruz", "Santos", "Flores", "Gonzales", "Bautista", "Villanueva", "Ramos", "Castro", "Rivera", "Mendoza", "Yap", "Tan", "Sy"];
+    
+    const driversCache = []; // { id, license }
+
+    for (let i = 1; i <= CONFIG.DRIVERS_COUNT; i++) {
+      const fname = getRandom(driverFirstNames);
+      const lname = getRandom(driverLastNames);
+      // PH License format approximation: L02-XX-XXXXXX
+      const licenseNo = `L02-${Math.floor(10 + Math.random()*89)}-${Math.floor(100000 + Math.random()*900000)}`;
+      
+      const [res] = await conn.execute(
+        `INSERT INTO Driver (license_number, first_name, last_name, address, birth_date, contact_number, email, license_status) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE')`,
+        [
+          licenseNo,
+          fname, 
+          lname, 
+          `${Math.floor(Math.random() * 900)} Sampaguita St, Metro Manila`,
+          "1990-01-01", 
+          `0917${Math.floor(1000000 + Math.random()*9000000)}`,
+          `driver${i}@email.com`
+        ]
+      );
+      driversCache.push(res.insertId);
+    }
+
+    // ---------------------------------------------------------
+    // 6. VEHICLES (50+ Records - Linked to Drivers)
+    // ---------------------------------------------------------
+    logger.info(`--> Seeding ${CONFIG.VEHICLES_COUNT} Vehicle Records...`);
+    
+    const carMakes = ["Toyota", "Mitsubishi", "Honda", "Nissan", "Suzuki", "Isuzu", "Hyundai"];
+    const carModels = ["Vios", "Mirage", "Wigo", "Fortuner", "Montero", "Innova", "City", "Civic", "Accent"];
+    const colors = ["White", "Black", "Silver", "Red", "Gray", "Blue"];
+    const vehiclesCache = []; // { id, driverId }
+
+    for (let i = 1; i <= CONFIG.VEHICLES_COUNT; i++) {
+      // Plate Number: ABC 1234
+      const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      const plate = 
+        letters.charAt(Math.floor(Math.random() * 26)) +
+        letters.charAt(Math.floor(Math.random() * 26)) +
+        letters.charAt(Math.floor(Math.random() * 26)) + "-" +
+        Math.floor(100 + Math.random() * 9000); // 3 or 4 digits
+
+      const ownerId = getRandom(driversCache);
+
+      const [res] = await conn.execute(
+        `INSERT INTO Vehicle (plate_number, make, model, year, color, vehicle_type, driver_id) 
+         VALUES (?, ?, ?, ?, ?, 'Sedan', ?)`,
+        [
+          plate, 
+          getRandom(carMakes), 
+          getRandom(carModels), 
+          2015 + Math.floor(Math.random() * 8), 
+          getRandom(colors), 
+          ownerId
+        ]
+      );
+      vehiclesCache.push({ vehicleId: res.insertId, driverId: ownerId });
+    }
+
+    // ---------------------------------------------------------
+    // 7. TICKETS & VIOLATIONS (40+ Records)
+    // ---------------------------------------------------------
+    logger.info(`--> Seeding ${CONFIG.TICKETS_COUNT} Traffic Tickets...`);
+    
+    const [vTypes] = await conn.execute("SELECT * FROM ViolationType");
+    const ticketsCache = [];
+
+    for (let i = 1; i <= CONFIG.TICKETS_COUNT; i++) {
+      // 1. Pick an officer (this determines the LGU)
+      const officer = getRandom(officerIds); // { userId, lguId }
+      
+      // 2. Pick a vehicle (this determines the driver)
+      const vehicle = getRandom(vehiclesCache); // { vehicleId, driverId }
+
+      // 3. Ticket Number: TKT-YYYYMMDD-XXXX
+      const tktNum = `TKT-${new Date().getFullYear()}-${String(i).padStart(4, '0')}`;
+      
+      // 4. Status distribution
+      const randStatus = Math.random();
+      let status = "OPEN";
+      if (randStatus > 0.3) status = "PAID"; // 70% paid for Payment data
+      else if (randStatus < 0.05) status = "DISMISSED";
+
+      const tktDate = getRandomDate();
+
+      // Insert Ticket
+      const [tRes] = await conn.execute(
+        `INSERT INTO Ticket (ticket_number, date_issued, time_issued, location, status, driver_id, vehicle_id, issued_by, lgu_id) 
+         VALUES (?, ?, ?, 'Edsa corner Shaw Blvd', ?, ?, ?, ?, ?)`,
+        [
+          tktNum, 
+          tktDate, 
+          `${Math.floor(Math.random()*24)}:${Math.floor(Math.random()*60)}:00`,
+          status,
+          vehicle.driverId,
+          vehicle.vehicleId,
+          officer.userId,
+          officer.lguId
+        ]
+      );
+
+      const ticketId = tRes.insertId;
+      ticketsCache.push({ id: ticketId, status: status, lguId: officer.lguId, fine: 0, date: tktDate });
+
+      // Insert 1 or 2 Violations per ticket
+      const numViolations = Math.random() > 0.8 ? 2 : 1; 
+      let ticketTotalFine = 0;
+      let ticketPoints = 0;
+
+      for (let v = 0; v < numViolations; v++) {
+        const violation = getRandom(vTypes);
+        await conn.execute(
+          `INSERT INTO TicketViolation (ticket_id, violation_type_id) VALUES (?, ?)`,
+          [ticketId, violation.violation_type_id]
+        );
+        ticketTotalFine += parseFloat(violation.fine_amount);
+        ticketPoints += parseInt(violation.demerit_point);
       }
+
+      // Update Driver Demerits
+      await conn.execute(
+        `UPDATE Driver SET demerit_points = demerit_points + ? WHERE driver_id = ?`,
+        [ticketPoints, vehicle.driverId]
+      );
+      
+      // Check suspension threshold
+      const threshold = 10;
+      const [dInfo] = await conn.execute("SELECT demerit_points FROM Driver WHERE driver_id=?", [vehicle.driverId]);
+      if(dInfo[0].demerit_points >= threshold) {
+         await conn.execute("UPDATE Driver SET license_status='SUSPENDED' WHERE driver_id=?", [vehicle.driverId]);
+      }
+      
+      // Update ticket amount in memory for payment
+      ticketsCache[ticketsCache.length-1].fine = ticketTotalFine;
+    }
+
+    // ---------------------------------------------------------
+    // 8. PAYMENTS (For Paid Tickets)
+    // ---------------------------------------------------------
+    logger.info("--> Seeding Payment Transactions...");
+    
+    let paymentCount = 0;
+    for (const tkt of ticketsCache) {
+      if (tkt.status === 'PAID') {
+        // Find a staff member belonging to the same LGU as the ticket
+        const staff = lguStaffIds.find(s => s.lguId === tkt.lguId) || lguStaffIds[0];
+        
+        await conn.execute(
+          `INSERT INTO Payment (ticket_id, amount_paid, payment_date, payment_method, receipt_number, processed_by) 
+           VALUES (?, ?, ?, 'CASH', ?, ?)`,
+          [
+             tkt.id, 
+             tkt.fine, 
+             tkt.date, // Payment same day as issue for simplicity, or add minimal offset
+             `RCT-${tkt.id}-${Math.floor(Math.random() * 10000)}`,
+             staff.userId
+          ]
+        );
+        paymentCount++;
+      }
+    }
+
+    // ---------------------------------------------------------
+    // 9. AUDIT LOGS (Samples)
+    // ---------------------------------------------------------
+    logger.info("--> Seeding Sample Audit Logs...");
+    
+    const actions = ["LOGIN_SUCCESS", "TICKET_CREATE", "PAYMENT_PROCESSED", "DRIVER_UPDATE"];
+    for(let i=0; i<50; i++) {
+       const user = getRandom(lguStaffIds) || {userId: 1};
+       await conn.execute(
+         `INSERT INTO AuditLog (user_id, action, timestamp, details, ip_address) 
+          VALUES (?, ?, NOW() - INTERVAL ? HOUR, 'System simulated activity', '192.168.1.100')`,
+         [user.userId, getRandom(actions), Math.floor(Math.random()*100)]
+       );
     }
 
     await conn.commit();
-    logger.success("Seed data applied successfully.");
+    
+    console.log("----------------------------------------------------------------");
+    logger.success("SEEDING COMPLETE: Database successfully populated.");
+    logger.info(`Summary Created:`);
+    logger.info(` - LGUs: 10`);
+    logger.info(` - Officers: ${officerIds.length}`);
+    logger.info(` - Admin/Staff: ${1 + 1 + lguMap.length + lguStaffIds.length}`);
+    logger.info(` - Drivers: ${CONFIG.DRIVERS_COUNT}`);
+    logger.info(` - Vehicles: ${CONFIG.VEHICLES_COUNT}`);
+    logger.info(` - Tickets: ${CONFIG.TICKETS_COUNT}`);
+    logger.info(` - Payments: ${paymentCount}`);
+    console.log("----------------------------------------------------------------");
+    
   } catch (err) {
     await conn.rollback();
-    logger.error("Seeding failed:", err.message);
-    process.exitCode = 1;
+    logger.error("Seeding Failed! Rolling back changes...");
+    logger.error(err.message);
+    process.exit(1);
   } finally {
     await conn.end();
   }
 }
 
+// Execute
 run().catch((e) => {
-  logger.error(e);
+  logger.error("Fatal Error:", e);
   process.exit(1);
 });
