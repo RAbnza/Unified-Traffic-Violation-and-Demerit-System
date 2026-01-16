@@ -16,7 +16,10 @@ router.post(
     const { username, password } = req.validBody;
     const p = getPool();
     const [rows] = await p.execute(
-      "SELECT u.user_id, u.username, u.password, u.role_id, r.role_name FROM User u JOIN Role r ON r.role_id=u.role_id WHERE u.username=? LIMIT 1",
+      `SELECT u.user_id, u.username, u.password, u.first_name, u.last_name, u.email, u.role_id, u.lgu_id, r.role_name 
+       FROM User u 
+       JOIN Role r ON r.role_id=u.role_id 
+       WHERE u.username=? LIMIT 1`,
       [username]
     );
     const user = rows[0];
@@ -31,11 +34,22 @@ router.post(
     }
     const token = signToken(user);
     await recordAudit({ action: "LOGIN_SUCCESS", user_id: user.user_id, details: JSON.stringify({ username }), ip_address: req.ip });
-    ok(res, { token, user: { user_id: user.user_id, username: user.username, role_id: user.role_id, role_name: user.role_name } });
+    ok(res, { 
+      token, 
+      user: { 
+        user_id: user.user_id, 
+        username: user.username, 
+        first_name: user.first_name,
+        last_name: user.last_name,
+        email: user.email,
+        role_id: user.role_id, 
+        role_name: user.role_name,
+        lgu_id: user.lgu_id
+      } 
+    });
   })
 );
 
-export default router;
 // Logout endpoint (stateless JWT) - audit only
 router.post(
   "/logout",
@@ -45,3 +59,5 @@ router.post(
     ok(res, { success: true });
   })
 );
+
+export default router;

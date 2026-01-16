@@ -22,11 +22,11 @@ function Landing() {
 
   useEffect(() => {
     const stored = localStorage.getItem("theme");
-    const systemDark =
-      window.matchMedia &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const initial = stored ? stored : systemDark ? "dark" : "light";
+    // Default to light mode if no saved preference
+    const initial = stored || "light";
     setTheme(initial);
+    // Save default if not already saved
+    if (!stored) localStorage.setItem("theme", "light");
   }, []);
 
   useEffect(() => {

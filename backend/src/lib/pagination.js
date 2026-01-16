@@ -6,10 +6,10 @@ export function getPagination(query) {
   if (pageSize > 100) pageSize = 100; // safety cap
   const offset = (page - 1) * pageSize;
   const limit = pageSize;
-  return { page, pageSize, limit, offset };
+  return { page, pageSize, limit: Math.floor(limit), offset: Math.floor(offset) };
 }
 
 export function addPagination(sql, params, pagination) {
-  // Append LIMIT/OFFSET to SQL and push params
-  return { sql: `${sql} LIMIT ? OFFSET ?`, params: [...params, pagination.limit, pagination.offset] };
+  // Append LIMIT/OFFSET to SQL and push params as integers
+  return { sql: `${sql} LIMIT ${Math.floor(pagination.limit)} OFFSET ${Math.floor(pagination.offset)}`, params: [...params] };
 }

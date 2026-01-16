@@ -23,6 +23,8 @@ import authRoute from "./routes/auth.route.js";
 import officerAssignmentsRoute from "./routes/officerAssignments.route.js";
 import reportsRoute from "./routes/reports.route.js";
 import backupRoute from "./routes/backup.route.js";
+import driversRoute from "./routes/drivers.route.js";
+import vehiclesRoute from "./routes/vehicles.route.js";
 
 app.use("/api/users", usersRoute);
 app.use("/api/roles", rolesRoute);
@@ -36,6 +38,8 @@ app.use("/api/auth", authRoute);
 app.use("/api/assignments", officerAssignmentsRoute);
 app.use("/api/reports", reportsRoute);
 app.use("/api/backup", backupRoute);
+app.use("/api/drivers", driversRoute);
+app.use("/api/vehicles", vehiclesRoute);
 
 // Duplicate import removed
 

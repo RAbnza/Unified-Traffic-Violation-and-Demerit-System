@@ -5,10 +5,12 @@ import './index.css'
 import App from './App.jsx'
 
 // Apply theme immediately before React renders to prevent flash
+// Default to light mode if no saved preference
 const savedTheme = localStorage.getItem('theme');
-const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-const theme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
+const theme = savedTheme || 'light';
 document.documentElement.classList.add(theme);
+// Ensure theme is saved to localStorage
+if (!savedTheme) localStorage.setItem('theme', 'light');
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

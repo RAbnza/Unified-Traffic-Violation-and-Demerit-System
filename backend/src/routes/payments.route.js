@@ -43,22 +43,23 @@ router.get(
     const { ticket_id } = req.validQuery || {};
     const p = getPool();
     let sql = "SELECT * FROM Payment";
-    const params = [];
+    let params = [];
     if (ticket_id !== undefined) {
       sql += " WHERE ticket_id=?";
       params.push(ticket_id);
     }
-    sql += " ORDER BY payment_id DESC";
-    const pagination = getPagination(req.query);
-    ({ sql, params } = addPagination(sql, params, pagination));
+    
     // Sorting
     const sortBy = req.query.sortBy || "payment_id";
     const sortDir = (req.query.sortDir || "DESC").toUpperCase() === "ASC" ? "ASC" : "DESC";
     const allowedSort = new Set(["payment_id", "payment_date", "amount_paid"]);
     const sortColumn = allowedSort.has(sortBy) ? sortBy : "payment_id";
     sql += ` ORDER BY ${sortColumn} ${sortDir}`;
-    ({ sql, params } = addPagination(sql, params, pagination));
-    const [rows] = await p.execute(sql, params);
+    
+    // Pagination (only once)
+    const pagination = getPagination(req.query);
+    const paginated = addPagination(sql, params, pagination);
+    const [rows] = await p.execute(paginated.sql, paginated.params);
     // Total
     let countSql = "SELECT COUNT(*) AS total FROM Payment";
     const countParams = [];

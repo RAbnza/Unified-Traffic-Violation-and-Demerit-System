@@ -18,7 +18,7 @@ router.get(
     const { user_id, lgu_id, status } = req.validQuery || {};
     const p = getPool();
     let sql = "SELECT * FROM OfficerAssignment";
-    const params = [];
+    let params = [];
     const cond = [];
     if (user_id !== undefined) { cond.push("user_id=?"); params.push(user_id); }
     if (lgu_id !== undefined) { cond.push("lgu_id=?"); params.push(lgu_id); }
@@ -26,8 +26,8 @@ router.get(
     if (cond.length) sql += " WHERE " + cond.join(" AND ");
     sql += " ORDER BY assignment_id DESC";
     const pagination = getPagination(req.query);
-    ({ sql, params } = addPagination(sql, params, pagination));
-    const [rows] = await p.execute(sql, params);
+    const paginated = addPagination(sql, params, pagination);
+    const [rows] = await p.execute(paginated.sql, paginated.params);
     ok(res, rows, { page: pagination.page, pageSize: pagination.pageSize });
   })
 );

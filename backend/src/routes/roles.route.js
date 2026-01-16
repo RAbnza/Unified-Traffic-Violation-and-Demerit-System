@@ -3,11 +3,13 @@ import asyncHandler from "../lib/asyncHandler.js";
 import { getPool } from "../config/db.pool.js";
 import { getPagination, addPagination } from "../lib/pagination.js";
 import { ok } from "../lib/respond.js";
+import { requireAuth } from "../lib/auth.js";
 
 const router = Router();
 
 router.get(
   "/",
+  requireAuth,
   asyncHandler(async (req, res) => {
     const p = getPool();
     const base = "SELECT role_id, role_name, description FROM Role ORDER BY role_name ASC";

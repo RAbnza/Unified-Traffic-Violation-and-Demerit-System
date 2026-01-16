@@ -87,6 +87,7 @@ async function run() {
 
     // 4) Vehicle
     let vehicleId = await selectId(conn, "SELECT vehicle_id FROM Vehicle WHERE plate_number=? LIMIT 1", ["ABC-1234"]);
+    let ticketId = null; // Will be set later
     if (!vehicleId) {
       const [res] = await conn.execute(
         "INSERT INTO Vehicle (plate_number, make, model, year, color, vehicle_type, driver_id) VALUES (?,?,?,?,?,?,?)",
@@ -161,59 +162,141 @@ async function run() {
       );
     }
 
-    // 7) ViolationType
+    // Update users with lgu_id
+    await conn.execute("UPDATE User SET lgu_id = ? WHERE user_id IN (?, ?, ?, ?)", 
+      [lguId, officerUserId, lguAdminUserId, lguStaffUserId, auditorUserId]);
+
+    // 7) ViolationType - Add multiple violation types
+    const violationTypes = [
+      ["Overspeeding", "Exceeding posted speed limit", 1000.0, 3],
+      ["Illegal Parking", "Parking in no-parking zone", 500.0, 1],
+      ["Running Red Light", "Failing to stop at red traffic signal", 1500.0, 4],
+      ["No Helmet", "Motorcycle rider without helmet", 750.0, 2],
+      ["No Seatbelt", "Driver or passenger not wearing seatbelt", 500.0, 1],
+      ["Driving Without License", "Operating vehicle without valid license", 3000.0, 6],
+      ["Expired Registration", "Operating vehicle with expired registration", 2000.0, 2],
+      ["Reckless Driving", "Driving in a reckless manner", 2500.0, 5],
+      ["Illegal U-Turn", "Making U-turn in prohibited area", 500.0, 1],
+      ["Obstruction", "Causing traffic obstruction", 750.0, 2],
+    ];
+    
+    for (const [name, desc, fine, points] of violationTypes) {
+      await conn.execute(
+        `INSERT INTO ViolationType (name, description, fine_amount, demerit_point) 
+         VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE description=VALUES(description), fine_amount=VALUES(fine_amount), demerit_point=VALUES(demerit_point)`,
+        [name, desc, fine, points]
+      );
+    }
+    
     let violationTypeId = await selectId(conn, "SELECT violation_type_id FROM ViolationType WHERE name=? LIMIT 1", ["Overspeeding"]);
-    if (!violationTypeId) {
-      const [res] = await conn.execute(
-        "INSERT INTO ViolationType (name, description, fine_amount, demerit_point) VALUES (?,?,?,?)",
-        ["Overspeeding", "Exceeding posted speed limit", 1000.0, 3]
+
+    // Add more drivers
+    const drivers = [
+      ["D-0012345", "John", "Doe", "123 Main St", "1990-01-15", "+63-900-111-2222", "john.doe@example.com"],
+      ["D-0023456", "Jane", "Smith", "456 Oak Ave", "1985-05-20", "+63-900-222-3333", "jane.smith@example.com"],
+      ["D-0034567", "Robert", "Johnson", "789 Pine Rd", "1992-08-10", "+63-900-333-4444", "robert.j@example.com"],
+      ["D-0045678", "Maria", "Garcia", "321 Elm St", "1988-12-25", "+63-900-444-5555", "maria.g@example.com"],
+      ["D-0056789", "James", "Williams", "654 Cedar Ln", "1995-03-18", "+63-900-555-6666", "james.w@example.com"],
+    ];
+    
+    const driverIds = [];
+    for (const [license, first, last, addr, bday, phone, email] of drivers) {
+      let id = await selectId(conn, "SELECT driver_id FROM Driver WHERE license_number=? LIMIT 1", [license]);
+      if (!id) {
+        const [res] = await conn.execute(
+          "INSERT INTO Driver (license_number, first_name, last_name, address, birth_date, contact_number, email, license_status, demerit_points) VALUES (?,?,?,?,?,?,?, 'ACTIVE', 0)",
+          [license, first, last, addr, bday, phone, email]
+        );
+        id = res.insertId;
+      }
+      driverIds.push(id);
+    }
+    driverId = driverIds[0];
+
+    // Add more vehicles
+    const vehicles = [
+      ["ABC-1234", "Toyota", "Vios", 2020, "White", "Sedan", driverIds[0]],
+      ["XYZ-5678", "Honda", "Civic", 2019, "Black", "Sedan", driverIds[1]],
+      ["DEF-9012", "Mitsubishi", "Montero", 2021, "Silver", "SUV", driverIds[2]],
+      ["GHI-3456", "Ford", "Ranger", 2018, "Red", "Pickup", driverIds[3]],
+      ["JKL-7890", "Suzuki", "Swift", 2022, "Blue", "Hatchback", driverIds[4]],
+      ["MNO-1357", "Toyota", "Fortuner", 2020, "Gray", "SUV", driverIds[0]],
+    ];
+    
+    const vehicleIds = [];
+    for (const [plate, make, model, year, color, type, ownerDriverId] of vehicles) {
+      let id = await selectId(conn, "SELECT vehicle_id FROM Vehicle WHERE plate_number=? LIMIT 1", [plate]);
+      if (!id) {
+        const [res] = await conn.execute(
+          "INSERT INTO Vehicle (plate_number, make, model, year, color, vehicle_type, driver_id) VALUES (?,?,?,?,?,?,?)",
+          [plate, make, model, year, color, type, ownerDriverId]
+        );
+        id = res.insertId;
+      }
+      vehicleIds.push(id);
+    }
+    vehicleId = vehicleIds[0];
+
+    // 8) Create multiple tickets
+    const ticketData = [
+      ["TKT-0001", "Main Ave & 1st St", "PAID", driverIds[0], vehicleIds[0]],
+      ["TKT-0002", "Highway 5 KM 23", "OPEN", driverIds[1], vehicleIds[1]],
+      ["TKT-0003", "Downtown Plaza", "OPEN", driverIds[2], vehicleIds[2]],
+      ["TKT-0004", "City Hall Parking", "DISMISSED", driverIds[3], vehicleIds[3]],
+      ["TKT-0005", "National Road", "OPEN", driverIds[4], vehicleIds[4]],
+      ["TKT-0006", "Market Street", "PAID", driverIds[0], vehicleIds[5]],
+      ["TKT-0007", "School Zone Area", "OPEN", driverIds[1], vehicleIds[1]],
+      ["TKT-0008", "Intersection A", "OPEN", driverIds[2], vehicleIds[2]],
+    ];
+    
+    const ticketIds = [];
+    for (let i = 0; i < ticketData.length; i++) {
+      const [ticketNum, location, status, dId, vId] = ticketData[i];
+      let id = await selectId(conn, "SELECT ticket_id FROM Ticket WHERE ticket_number=? LIMIT 1", [ticketNum]);
+      if (!id) {
+        // Vary dates
+        const date = new Date();
+        date.setDate(date.getDate() - i * 3);
+        const [res] = await conn.execute(
+          "INSERT INTO Ticket (ticket_number, date_issued, time_issued, location, status, driver_id, vehicle_id, issued_by, lgu_id) VALUES (?,?,?,?,?,?,?,?,?)",
+          [ticketNum, date.toISOString().slice(0, 10), date.toISOString().slice(11, 19), location, status, dId, vId, officerUserId, lguId]
+        );
+        id = res.insertId;
+      }
+      ticketIds.push(id);
+    }
+    ticketId = ticketIds[0];
+
+    // 9) TicketViolation - assign violations to tickets
+    const violationTypeIds = [];
+    const [vtRows] = await conn.execute("SELECT violation_type_id FROM ViolationType ORDER BY violation_type_id LIMIT 10");
+    vtRows.forEach(r => violationTypeIds.push(r.violation_type_id));
+    
+    for (let i = 0; i < ticketIds.length; i++) {
+      const tId = ticketIds[i];
+      const vTypeId = violationTypeIds[i % violationTypeIds.length];
+      const [tvRows] = await conn.execute(
+        "SELECT ticket_violation_id FROM TicketViolation WHERE ticket_id=? LIMIT 1",
+        [tId]
       );
-      violationTypeId = res.insertId;
+      if (tvRows.length === 0) {
+        await conn.execute("INSERT INTO TicketViolation (ticket_id, violation_type_id) VALUES (?,?)", [tId, vTypeId]);
+      }
     }
 
-    // 8) Ticket
-    let ticketId = await selectId(conn, "SELECT ticket_id FROM Ticket WHERE ticket_number=? LIMIT 1", ["TKT-0001"]);
-    if (!ticketId) {
-      const [res2] = await conn.execute(
-        "INSERT INTO Ticket (ticket_number, date_issued, time_issued, location, status, driver_id, vehicle_id, issued_by, lgu_id) VALUES (?,?,?,?,?,?,?,?,?)",
-        [
-          "TKT-0001",
-          new Date().toISOString().slice(0, 10), // YYYY-MM-DD
-          new Date().toISOString().slice(11, 19), // HH:MM:SS
-          "Main Ave & 1st St",
-          "OPEN",
-          driverId,
-          vehicleId,
-          officerUserId,
-          lguId,
-        ]
-      );
-      ticketId = res2.insertId;
-    }
-
-    // 9) TicketViolation
-    const [tvRows] = await conn.execute(
-      "SELECT ticket_violation_id FROM TicketViolation WHERE ticket_id=? AND violation_type_id=? LIMIT 1",
-      [ticketId, violationTypeId]
-    );
-    if (tvRows.length === 0) {
-      await conn.execute(
-        "INSERT INTO TicketViolation (ticket_id, violation_type_id) VALUES (?,?)",
-        [ticketId, violationTypeId]
-      );
-    }
-
-    // 10) Payment for the ticket (optional; creates one PAID example)
-    const [payRows] = await conn.execute(
-      "SELECT payment_id FROM Payment WHERE ticket_id=? LIMIT 1",
-      [ticketId]
-    );
-    if (payRows.length === 0) {
-      await conn.execute(
-        "INSERT INTO Payment (ticket_id, amount_paid, payment_date, payment_method, receipt_number, processed_by) VALUES (?,?,?,?,?,?)",
-        [ticketId, 1000.0, new Date(), "CASH", "RCT-0001", adminUserId]
-      );
-      await conn.execute("UPDATE Ticket SET status='PAID' WHERE ticket_id=?", [ticketId]);
+    // 10) Payment for paid tickets
+    for (let i = 0; i < ticketData.length; i++) {
+      if (ticketData[i][2] === "PAID") {
+        const tId = ticketIds[i];
+        const [payRows] = await conn.execute("SELECT payment_id FROM Payment WHERE ticket_id=? LIMIT 1", [tId]);
+        if (payRows.length === 0) {
+          const receiptNum = `RCT-${String(i + 1).padStart(4, "0")}`;
+          await conn.execute(
+            "INSERT INTO Payment (ticket_id, amount_paid, payment_date, payment_method, receipt_number, processed_by) VALUES (?,?,?,?,?,?)",
+            [tId, 1000.0, new Date(), "CASH", receiptNum, lguStaffUserId]
+          );
+        }
+      }
     }
 
     await conn.commit();
