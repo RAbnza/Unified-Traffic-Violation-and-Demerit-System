@@ -12,8 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { 
-  LayoutDashboard, DollarSign, FileDown, FileText, 
+import {
+  LayoutDashboard, DollarSign, FileDown, FileText,
   Search, Clock, CheckCircle, AlertTriangle, Download, Eye, CreditCard
 } from "lucide-react";
 
@@ -24,12 +24,12 @@ function LGUStaff() {
   const [activeMenu, setActiveMenu] = useState("dashboard");
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
-  
+
   // Data states
   const [tickets, setTickets] = useState([]);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   // Dialog states
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [paymentForm, setPaymentForm] = useState({ amount_paid: "", payment_method: "CASH", receipt_number: "" });
@@ -77,21 +77,21 @@ function LGUStaff() {
 
   const handleProcessPayment = async () => {
     if (!selectedTicket) return;
-    
+
     // Validate that payment amount matches fine amount exactly
     const fineAmount = parseFloat(selectedTicket.total_fine) || 0;
     const paymentAmount = parseFloat(paymentForm.amount_paid) || 0;
-    
+
     if (paymentAmount !== fineAmount) {
       toast.error(`Payment must be exactly ₱${fineAmount.toFixed(2)}. Partial or excess payments are not allowed.`);
       return;
     }
-    
+
     setLoading(true);
     try {
       // Generate a fresh receipt number to avoid duplicates on retry
       const freshReceiptNumber = generateReceiptNumber();
-      
+
       // Create payment record (backend also updates ticket status to PAID)
       const paymentRes = await fetch(`${API_URL}/api/payments`, {
         method: "POST",
@@ -104,12 +104,12 @@ function LGUStaff() {
           processed_by: user.user_id
         })
       });
-      
+
       if (!paymentRes.ok) {
         const errData = await paymentRes.json();
         throw new Error(errData.error?.message || "Failed to create payment");
       }
-      
+
       toast.success("Payment processed successfully!");
       setPaymentDialogOpen(false);
       setSelectedTicket(null);
@@ -122,7 +122,7 @@ function LGUStaff() {
   };
 
   // Filter tickets
-  const filteredTickets = tickets.filter(t => 
+  const filteredTickets = tickets.filter(t =>
     t.ticket_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.plate_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -165,7 +165,7 @@ function LGUStaff() {
 
     // Headers
     const headers = ['Ticket Number', 'Driver Name', 'Plate Number', 'Status', 'Total Fine', 'Date Issued', 'Payment Status'];
-    
+
     // Rows
     const rows = tickets.map(t => [
       t.ticket_number || '',
@@ -210,7 +210,7 @@ function LGUStaff() {
 
     // Headers
     const headers = ['Ticket Number', 'Driver Name', 'License Number', 'Plate Number', 'Violation Details', 'Status', 'Total Fine', 'Date Issued', 'Location'];
-    
+
     // Rows
     const rows = tickets.map(t => [
       t.ticket_number || '',
@@ -255,7 +255,7 @@ function LGUStaff() {
 
     // Headers
     const headers = ['Ticket Number', 'Driver Name', 'Plate Number', 'Status', 'Total Fine', 'Time Issued'];
-    
+
     // Rows
     const rows = todayTickets.map(t => [
       t.ticket_number || '',
@@ -302,8 +302,8 @@ function LGUStaff() {
 
   const renderDashboard = () => (
     <div className="space-y-6 animate-in fade-in duration-300">
-      <PageHeader 
-        title="LGU Staff Dashboard" 
+      <PageHeader
+        title="LGU Staff Dashboard"
         description="Process payments, view pending tickets, and generate collection reports."
       />
 
@@ -348,8 +348,8 @@ function LGUStaff() {
         </CardHeader>
         <CardContent>
           {pendingTickets.length === 0 ? (
-            <EmptyState 
-              title="No pending payments" 
+            <EmptyState
+              title="No pending payments"
               description="All tickets have been processed."
               icon={CheckCircle}
             />
@@ -376,8 +376,8 @@ function LGUStaff() {
                     <TableCell className="font-mono text-sm">{t.plate_number}</TableCell>
                     <TableCell className="text-sm">{t.officer_first_name || t.issued_by_username || '—'} {t.officer_last_name || ''}</TableCell>
                     <TableCell className="text-right">
-                      <Button 
-                        size="sm" 
+                      <Button
+                        size="sm"
                         onClick={() => openPaymentDialog(t)}
                       >
                         Process
@@ -395,14 +395,14 @@ function LGUStaff() {
 
   const renderProcessPayment = () => (
     <div className="space-y-6 animate-in fade-in duration-300">
-      <PageHeader 
-        title="Process Payment" 
+      <PageHeader
+        title="Process Payment"
         description="Record payment for traffic violations."
         actions={
           <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search tickets..." 
+            <Input
+              placeholder="Search tickets..."
               className="pl-9"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
@@ -420,8 +420,8 @@ function LGUStaff() {
           </CardHeader>
           <CardContent>
             {pendingTickets.length === 0 ? (
-              <EmptyState 
-                title="No pending payments" 
+              <EmptyState
+                title="No pending payments"
                 description="All violations have been paid."
               />
             ) : (
@@ -437,13 +437,13 @@ function LGUStaff() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pendingTickets.filter(t => 
-                    !searchQuery || 
+                  {pendingTickets.filter(t =>
+                    !searchQuery ||
                     t.ticket_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                     t.first_name?.toLowerCase().includes(searchQuery.toLowerCase())
                   ).map((t) => (
-                    <TableRow 
-                      key={t.ticket_id} 
+                    <TableRow
+                      key={t.ticket_id}
                       className="cursor-pointer hover:bg-muted/50"
                     >
                       <TableCell className="font-medium">{t.ticket_number}</TableCell>
@@ -452,8 +452,8 @@ function LGUStaff() {
                       <TableCell>{t.first_name} {t.last_name}</TableCell>
                       <TableCell className="text-sm">{t.officer_first_name || t.issued_by_username || '—'} {t.officer_last_name || ''}</TableCell>
                       <TableCell className="text-right">
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           onClick={() => openPaymentDialog(t)}
                         >
                           <CreditCard className="w-4 h-4 mr-2" />
@@ -494,14 +494,14 @@ function LGUStaff() {
 
   const renderPaymentHistory = () => (
     <div className="space-y-6 animate-in fade-in duration-300">
-      <PageHeader 
-        title="Payment History" 
+      <PageHeader
+        title="Payment History"
         description="View all processed payments and collection records."
         actions={
           <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search payments..." 
+            <Input
+              placeholder="Search payments..."
               className="pl-9"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
@@ -513,8 +513,8 @@ function LGUStaff() {
       <Card>
         <CardContent className="pt-6">
           {paidTickets.length === 0 ? (
-            <EmptyState 
-              title="No payment history" 
+            <EmptyState
+              title="No payment history"
               description="Processed payments will appear here."
             />
           ) : (
@@ -556,8 +556,8 @@ function LGUStaff() {
 
   const renderExportReports = () => (
     <div className="space-y-6 animate-in fade-in duration-300">
-      <PageHeader 
-        title="Export Reports" 
+      <PageHeader
+        title="Export Reports"
         description="Download comprehensive reports for record-keeping and analysis."
       />
 
@@ -671,7 +671,14 @@ function LGUStaff() {
                   <div><span className="text-muted-foreground">Location:</span></div>
                   <div>{selectedTicket.location}</div>
                   <div><span className="text-muted-foreground">Date:</span></div>
-                  <div>{selectedTicket.date_issued}</div>
+                  <div>{new Date(selectedTicket.date_issued)
+                    .toLocaleDateString('en-US', {
+                      month: '2-digit',
+                      day: '2-digit',
+                      year: 'numeric',
+                    })
+                    .replace(/\//g, '-') // Swaps slashes for dashes
+                  }</div>
                   <div><span className="text-muted-foreground">Issued By:</span></div>
                   <div>{selectedTicket.officer_first_name || selectedTicket.issued_by_username || '—'} {selectedTicket.officer_last_name || ''}</div>
                 </div>
@@ -687,10 +694,10 @@ function LGUStaff() {
 
               <div className="space-y-2">
                 <Label>Payment Amount (₱)</Label>
-                <Input 
-                  type="number" 
+                <Input
+                  type="number"
                   value={paymentForm.amount_paid}
-                  onChange={e => setPaymentForm({...paymentForm, amount_paid: e.target.value})}
+                  onChange={e => setPaymentForm({ ...paymentForm, amount_paid: e.target.value })}
                   placeholder="Enter exact fine amount"
                   className={parseFloat(paymentForm.amount_paid) !== parseFloat(selectedTicket.total_fine || 0) ? "border-orange-500" : "border-green-500"}
                 />
@@ -701,10 +708,10 @@ function LGUStaff() {
 
               <div className="space-y-2">
                 <Label>Payment Method</Label>
-                <select 
+                <select
                   className="w-full h-10 px-3 border rounded-md bg-background"
                   value={paymentForm.payment_method}
-                  onChange={e => setPaymentForm({...paymentForm, payment_method: e.target.value})}
+                  onChange={e => setPaymentForm({ ...paymentForm, payment_method: e.target.value })}
                 >
                   <option value="CASH">Cash</option>
                   <option value="GCASH">GCash</option>
@@ -715,9 +722,9 @@ function LGUStaff() {
 
               <div className="space-y-2">
                 <Label>Receipt Number</Label>
-                <Input 
+                <Input
                   value={paymentForm.receipt_number}
-                  onChange={e => setPaymentForm({...paymentForm, receipt_number: e.target.value})}
+                  onChange={e => setPaymentForm({ ...paymentForm, receipt_number: e.target.value })}
                   placeholder="RCP-XXXXXXXXX"
                 />
               </div>
