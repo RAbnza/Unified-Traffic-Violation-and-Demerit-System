@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { 
+import {
   LayoutDashboard, FilePlus, FileEdit, FileText, CheckCircle, Clock, Car, MapPin, User,
   Save, X, Search, AlertCircle, Loader2, Plus, Eye
 } from "lucide-react";
@@ -25,22 +25,22 @@ function Officer() {
   const [activeMenu, setActiveMenu] = useState("dashboard");
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
-  
+
   // Data states
   const [tickets, setTickets] = useState([]);
   const [violationTypes, setViolationTypes] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   // Form states
   const [formData, setFormData] = useState({
     ticket_number: generateTicketNumber(), location: "", driver_id: "", vehicle_id: "", violation_type_id: "", license_number: "", plate_number: ""
   });
-  
+
   // Lookup states
   const [driverInfo, setDriverInfo] = useState(null);
   const [vehicleInfo, setVehicleInfo] = useState(null);
   const [lookupLoading, setLookupLoading] = useState({ driver: false, vehicle: false });
-  
+
   // Edit states
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ status: "", location: "" });
@@ -120,7 +120,7 @@ function Officer() {
             method: "POST", headers, body: JSON.stringify({ violation_type_id: parseInt(formData.violation_type_id) })
           });
           const violationData = await violationRes.json();
-          
+
           // Check if license was suspended due to demerit points
           if (violationData.license_status_changed && violationData.new_license_status === 'SUSPENDED') {
             toast.warning(`⚠️ Driver's license has been SUSPENDED due to exceeding demerit points threshold!`, {
@@ -192,7 +192,7 @@ function Officer() {
       const data = await res.json();
       if (data.data) {
         setVehicleInfo(data.data);
-        setFormData(prev => ({ 
+        setFormData(prev => ({
           ...prev, vehicle_id: data.data.vehicle_id, driver_id: data.data.driver_id, license_number: data.data.license_number
         }));
         setDriverInfo({
@@ -262,7 +262,7 @@ function Officer() {
     setViewDialogOpen(true);
   };
 
-  const filteredTickets = tickets.filter(t => 
+  const filteredTickets = tickets.filter(t =>
     t.ticket_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.plate_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -311,7 +311,14 @@ function Officer() {
                     <TableCell className="text-sm">{t.violation_names || '—'}</TableCell>
                     <TableCell className="font-medium">₱{parseFloat(t.total_fine || 0).toFixed(2)}</TableCell>
                     <TableCell className="font-medium text-orange-600">{t.total_demerit_points || 0}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{t.date_issued}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{new Date(t.date_issued)
+                      .toLocaleDateString('en-US', {
+                        month: '2-digit',
+                        day: '2-digit',
+                        year: 'numeric',
+                      })
+                      .replace(/\//g, '-') // Swaps slashes for dashes
+                    }</TableCell>
                     <TableCell className="text-right"><StatusBadge status={t.status} /></TableCell>
                   </TableRow>
                 ))}
@@ -333,7 +340,7 @@ function Officer() {
               <div className="space-y-2"><Label>Ticket Number</Label><Input disabled value={formData.ticket_number} className="bg-muted" /></div>
               <div className="space-y-2">
                 <Label htmlFor="violation">Violation Type *</Label>
-                <Select value={formData.violation_type_id} onValueChange={val => setFormData({...formData, violation_type_id: val})}>
+                <Select value={formData.violation_type_id} onValueChange={val => setFormData({ ...formData, violation_type_id: val })}>
                   <SelectTrigger><SelectValue placeholder="Select Violation" /></SelectTrigger>
                   <SelectContent>
                     {violationTypes.map(v => (
@@ -380,7 +387,7 @@ function Officer() {
                 </Button>
               </div>
               <div className="flex gap-2">
-                <Input id="plate" placeholder="e.g., ABC-1234" value={formData.plate_number} onChange={e => setFormData({...formData, plate_number: e.target.value.toUpperCase()})} className="flex-1" />
+                <Input id="plate" placeholder="e.g., ABC-1234" value={formData.plate_number} onChange={e => setFormData({ ...formData, plate_number: e.target.value.toUpperCase() })} className="flex-1" />
                 <Button type="button" variant="outline" onClick={lookupVehicle} disabled={lookupLoading.vehicle}>
                   {lookupLoading.vehicle ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                 </Button>
@@ -402,7 +409,7 @@ function Officer() {
                 </Button>
               </div>
               <div className="flex gap-2">
-                <Input id="license" placeholder="e.g., D-0012345" value={formData.license_number} onChange={e => setFormData({...formData, license_number: e.target.value})} className="flex-1" />
+                <Input id="license" placeholder="e.g., D-0012345" value={formData.license_number} onChange={e => setFormData({ ...formData, license_number: e.target.value })} className="flex-1" />
                 <Button type="button" variant="outline" onClick={lookupDriver} disabled={lookupLoading.driver}>
                   {lookupLoading.driver ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                 </Button>
@@ -419,7 +426,7 @@ function Officer() {
 
             <div className="space-y-2">
               <Label htmlFor="location"><MapPin className="inline w-4 h-4 mr-1" />Location *</Label>
-              <Input id="location" required placeholder="Street, intersection, or landmark" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} />
+              <Input id="location" required placeholder="Street, intersection, or landmark" value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} />
             </div>
 
             {(!formData.driver_id || !formData.vehicle_id) && (
@@ -456,7 +463,7 @@ function Officer() {
                   <TableRow key={t.ticket_id}>
                     <TableCell className="font-medium">{t.ticket_number}</TableCell>
                     <TableCell>
-                      {editingId === t.ticket_id ? <Input value={editForm.location} onChange={e => setEditForm({...editForm, location: e.target.value})} className="h-8" /> : <span className="text-sm">{t.location}</span>}
+                      {editingId === t.ticket_id ? <Input value={editForm.location} onChange={e => setEditForm({ ...editForm, location: e.target.value })} className="h-8" /> : <span className="text-sm">{t.location}</span>}
                     </TableCell>
                     <TableCell>{t.first_name} {t.last_name}</TableCell>
                     <TableCell className="font-mono text-sm">{t.plate_number}</TableCell>
@@ -466,7 +473,7 @@ function Officer() {
                     <TableCell className="text-sm">{t.officer_first_name || t.issued_by_username || '—'} {t.officer_last_name || ''}</TableCell>
                     <TableCell>
                       {editingId === t.ticket_id ? (
-                        <Select value={editForm.status} onValueChange={val => setEditForm({...editForm, status: val})}>
+                        <Select value={editForm.status} onValueChange={val => setEditForm({ ...editForm, status: val })}>
                           <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="OPEN">OPEN</SelectItem>
@@ -516,7 +523,14 @@ function Officer() {
               <TableBody>
                 {tickets.map(t => (
                   <TableRow key={t.ticket_id}>
-                    <TableCell className="text-sm text-muted-foreground">{t.date_issued}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{new Date(t.date_issued)
+                      .toLocaleDateString('en-US', {
+                        month: '2-digit',
+                        day: '2-digit',
+                        year: 'numeric',
+                      })
+                      .replace(/\//g, '-') // Swaps slashes for dashes
+                    }</TableCell>
                     <TableCell className="font-medium">{t.ticket_number}</TableCell>
                     <TableCell>{t.first_name} {t.last_name}</TableCell>
                     <TableCell className="text-sm">{t.location}</TableCell>
@@ -550,8 +564,19 @@ function Officer() {
               <div className="grid grid-cols-2 gap-4">
                 <div><Label className="text-muted-foreground">Ticket Number</Label><p className="font-medium">{selectedTicket.ticket_number}</p></div>
                 <div><Label className="text-muted-foreground">Status</Label><p><StatusBadge status={selectedTicket.status} /></p></div>
-                <div><Label className="text-muted-foreground">Date Issued</Label><p>{selectedTicket.date_issued}</p></div>
-                <div><Label className="text-muted-foreground">Time Issued</Label><p>{selectedTicket.time_issued}</p></div>
+                <div><Label className="text-muted-foreground">Date Issued</Label><p>{new Date(selectedTicket.date_issued)
+                  .toLocaleDateString('en-US', {
+                    month: '2-digit',
+                    day: '2-digit',
+                    year: 'numeric',
+                  })
+                  .replace(/\//g, '-') // Swaps slashes for dashes
+                }</p></div>
+                <div><Label className="text-muted-foreground">Time Issued</Label><p>{new Date('1970-01-01T' + selectedTicket.time_issued).toLocaleTimeString('en-US', {
+                  hour: 'numeric',
+                  minute: 'numeric',
+                  hour12: true
+                })}</p></div>
                 <div><Label className="text-muted-foreground">Driver</Label><p>{selectedTicket.first_name} {selectedTicket.last_name}</p></div>
                 <div><Label className="text-muted-foreground">Plate Number</Label><p className="font-mono">{selectedTicket.plate_number}</p></div>
                 <div><Label className="text-muted-foreground">Violation</Label><p>{selectedTicket.violation_names || '—'}</p></div>
@@ -571,17 +596,17 @@ function Officer() {
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Add New Driver</DialogTitle><DialogDescription>Register a new driver in the system</DialogDescription></DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2"><Label>License Number *</Label><Input value={driverForm.license_number} onChange={e => setDriverForm({...driverForm, license_number: e.target.value})} placeholder="D-0012345" /></div>
+            <div className="space-y-2"><Label>License Number *</Label><Input value={driverForm.license_number} onChange={e => setDriverForm({ ...driverForm, license_number: e.target.value })} placeholder="D-0012345" /></div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>First Name *</Label><Input value={driverForm.first_name} onChange={e => setDriverForm({...driverForm, first_name: e.target.value})} placeholder="John" /></div>
-              <div className="space-y-2"><Label>Last Name *</Label><Input value={driverForm.last_name} onChange={e => setDriverForm({...driverForm, last_name: e.target.value})} placeholder="Doe" /></div>
+              <div className="space-y-2"><Label>First Name *</Label><Input value={driverForm.first_name} onChange={e => setDriverForm({ ...driverForm, first_name: e.target.value })} placeholder="John" /></div>
+              <div className="space-y-2"><Label>Last Name *</Label><Input value={driverForm.last_name} onChange={e => setDriverForm({ ...driverForm, last_name: e.target.value })} placeholder="Doe" /></div>
             </div>
-            <div className="space-y-2"><Label>Address</Label><Input value={driverForm.address} onChange={e => setDriverForm({...driverForm, address: e.target.value})} placeholder="123 Main St" /></div>
+            <div className="space-y-2"><Label>Address</Label><Input value={driverForm.address} onChange={e => setDriverForm({ ...driverForm, address: e.target.value })} placeholder="123 Main St" /></div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Birth Date</Label><Input type="date" value={driverForm.birth_date} onChange={e => setDriverForm({...driverForm, birth_date: e.target.value})} /></div>
-              <div className="space-y-2"><Label>Contact Number</Label><Input value={driverForm.contact_number} onChange={e => setDriverForm({...driverForm, contact_number: e.target.value})} placeholder="+63-XXX-XXX-XXXX" /></div>
+              <div className="space-y-2"><Label>Birth Date</Label><Input type="date" value={driverForm.birth_date} onChange={e => setDriverForm({ ...driverForm, birth_date: e.target.value })} /></div>
+              <div className="space-y-2"><Label>Contact Number</Label><Input value={driverForm.contact_number} onChange={e => setDriverForm({ ...driverForm, contact_number: e.target.value })} placeholder="+63-XXX-XXX-XXXX" /></div>
             </div>
-            <div className="space-y-2"><Label>Email</Label><Input type="email" value={driverForm.email} onChange={e => setDriverForm({...driverForm, email: e.target.value})} placeholder="john@example.com" /></div>
+            <div className="space-y-2"><Label>Email</Label><Input type="email" value={driverForm.email} onChange={e => setDriverForm({ ...driverForm, email: e.target.value })} placeholder="john@example.com" /></div>
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setDriverDialogOpen(false)}>Cancel</Button><Button onClick={handleCreateDriver}><Save className="w-4 h-4 mr-2" />Add Driver</Button></DialogFooter>
         </DialogContent>
@@ -592,19 +617,19 @@ function Officer() {
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Add New Vehicle</DialogTitle><DialogDescription>Register a new vehicle in the system</DialogDescription></DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2"><Label>Plate Number *</Label><Input value={vehicleForm.plate_number} onChange={e => setVehicleForm({...vehicleForm, plate_number: e.target.value.toUpperCase()})} placeholder="ABC-1234" /></div>
+            <div className="space-y-2"><Label>Plate Number *</Label><Input value={vehicleForm.plate_number} onChange={e => setVehicleForm({ ...vehicleForm, plate_number: e.target.value.toUpperCase() })} placeholder="ABC-1234" /></div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Make</Label><Input value={vehicleForm.make} onChange={e => setVehicleForm({...vehicleForm, make: e.target.value})} placeholder="Toyota" /></div>
-              <div className="space-y-2"><Label>Model</Label><Input value={vehicleForm.model} onChange={e => setVehicleForm({...vehicleForm, model: e.target.value})} placeholder="Vios" /></div>
+              <div className="space-y-2"><Label>Make</Label><Input value={vehicleForm.make} onChange={e => setVehicleForm({ ...vehicleForm, make: e.target.value })} placeholder="Toyota" /></div>
+              <div className="space-y-2"><Label>Model</Label><Input value={vehicleForm.model} onChange={e => setVehicleForm({ ...vehicleForm, model: e.target.value })} placeholder="Vios" /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Year</Label><Input type="number" value={vehicleForm.year} onChange={e => setVehicleForm({...vehicleForm, year: e.target.value})} placeholder="2020" /></div>
-              <div className="space-y-2"><Label>Color</Label><Input value={vehicleForm.color} onChange={e => setVehicleForm({...vehicleForm, color: e.target.value})} placeholder="White" /></div>
+              <div className="space-y-2"><Label>Year</Label><Input type="number" value={vehicleForm.year} onChange={e => setVehicleForm({ ...vehicleForm, year: e.target.value })} placeholder="2020" /></div>
+              <div className="space-y-2"><Label>Color</Label><Input value={vehicleForm.color} onChange={e => setVehicleForm({ ...vehicleForm, color: e.target.value })} placeholder="White" /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Vehicle Type</Label>
-                <Select value={vehicleForm.vehicle_type} onValueChange={val => setVehicleForm({...vehicleForm, vehicle_type: val})}>
+                <Select value={vehicleForm.vehicle_type} onValueChange={val => setVehicleForm({ ...vehicleForm, vehicle_type: val })}>
                   <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Sedan">Sedan</SelectItem>
@@ -616,10 +641,10 @@ function Officer() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2"><Label>Owner Driver ID *</Label><Input type="number" value={vehicleForm.driver_id} onChange={e => setVehicleForm({...vehicleForm, driver_id: e.target.value})} placeholder="Driver ID" /></div>
+              <div className="space-y-2"><Label>Owner Driver ID *</Label><Input type="number" value={vehicleForm.driver_id} onChange={e => setVehicleForm({ ...vehicleForm, driver_id: e.target.value })} placeholder="Driver ID" /></div>
             </div>
             {!vehicleForm.driver_id && driverInfo && (
-              <Button type="button" variant="outline" className="w-full" onClick={() => setVehicleForm({...vehicleForm, driver_id: String(driverInfo.driver_id)})}>
+              <Button type="button" variant="outline" className="w-full" onClick={() => setVehicleForm({ ...vehicleForm, driver_id: String(driverInfo.driver_id) })}>
                 Use Current Driver ({driverInfo.first_name} {driverInfo.last_name})
               </Button>
             )}
