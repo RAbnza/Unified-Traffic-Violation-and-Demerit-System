@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { 
+import {
   LayoutDashboard, Users, FileEdit, History, FileText, CreditCard, Activity,
   Search, AlertTriangle, CheckCircle, Clock, Eye, X, Save, Car, AlertCircle,
   Plus, Edit, Trash2
@@ -26,7 +26,7 @@ function LGUAdmin() {
   const [activeMenu, setActiveMenu] = useState("dashboard");
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
-  
+
   // Data states
   const [tickets, setTickets] = useState([]);
   const [drivers, setDrivers] = useState([]);
@@ -34,15 +34,15 @@ function LGUAdmin() {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [demeritThreshold, setDemeritThreshold] = useState(12);
-  
+
   // Dialog states
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editForm, setEditForm] = useState({ status: "", location: "" });
-  
+
   // Driver search state
   const [driverSearchQuery, setDriverSearchQuery] = useState("");
-  
+
   // Driver CRUD dialog states
   const [driverDialogOpen, setDriverDialogOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState(null);
@@ -210,7 +210,7 @@ function LGUAdmin() {
   };
 
   // Filter tickets
-  const filteredTickets = tickets.filter(t => 
+  const filteredTickets = tickets.filter(t =>
     t.ticket_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.plate_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -237,8 +237,8 @@ function LGUAdmin() {
 
   const renderDashboard = () => (
     <div className="space-y-6 animate-in fade-in duration-300">
-      <PageHeader 
-        title="LGU Admin Dashboard" 
+      <PageHeader
+        title="LGU Admin Dashboard"
         description="Manage driver records, review violations, and oversee ticket status within your jurisdiction."
       />
 
@@ -280,8 +280,8 @@ function LGUAdmin() {
         </CardHeader>
         <CardContent>
           {tickets.length === 0 ? (
-            <EmptyState 
-              title="No tickets found" 
+            <EmptyState
+              title="No tickets found"
               description="Traffic violations will appear here once issued."
             />
           ) : (
@@ -301,8 +301,8 @@ function LGUAdmin() {
               </TableHeader>
               <TableBody>
                 {tickets.slice(0, 6).map((t) => (
-                  <TableRow 
-                    key={t.ticket_id} 
+                  <TableRow
+                    key={t.ticket_id}
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() => { setSelectedTicket(t); setActiveMenu("driver-records"); }}
                   >
@@ -329,25 +329,25 @@ function LGUAdmin() {
 
   const renderDrivers = () => {
     // Filter drivers by search query
-    const filteredDrivers = drivers.filter(d => 
+    const filteredDrivers = drivers.filter(d =>
       d.first_name?.toLowerCase().includes(driverSearchQuery.toLowerCase()) ||
       d.last_name?.toLowerCase().includes(driverSearchQuery.toLowerCase()) ||
       d.license_number?.toLowerCase().includes(driverSearchQuery.toLowerCase())
     );
-    
+
     // Calculate demerit statistics using dynamic threshold
     const totalDrivers = drivers.length;
     const driversWithDemerits = drivers.filter(d => d.demerit_points > 0).length;
     const atRiskDrivers = drivers.filter(d => d.demerit_points >= (demeritThreshold * 0.7) && d.license_status === 'ACTIVE').length;
     const suspendedDrivers = drivers.filter(d => d.license_status === 'SUSPENDED').length;
     const revokedDrivers = drivers.filter(d => d.license_status === 'REVOKED').length;
-    
+
     // Get status badge for license
     const getLicenseStatusBadge = (status) => {
       const variants = { ACTIVE: "success", SUSPENDED: "destructive", REVOKED: "secondary" };
       return <Badge variant={variants[status] || "outline"}>{status}</Badge>;
     };
-    
+
     // Get risk level based on demerit points and threshold
     const getRiskLevel = (points, status) => {
       if (status === 'SUSPENDED') return { level: "SUSPENDED", variant: "destructive", color: "text-red-600" };
@@ -359,23 +359,23 @@ function LGUAdmin() {
       if (points > 0) return { level: "LOW", variant: "secondary", color: "text-blue-600" };
       return { level: "CLEAN", variant: "outline", color: "text-green-600" };
     };
-    
+
     // Calculate progress percentage towards threshold
     const getProgressToThreshold = (points) => {
       return Math.min(100, Math.round((points / demeritThreshold) * 100));
     };
-    
+
     return (
       <div className="space-y-6 animate-in fade-in duration-300">
-        <PageHeader 
-          title="Drivers & Demerit Points" 
+        <PageHeader
+          title="Drivers & Demerit Points"
           description="Monitor all drivers in your jurisdiction and their current demerit point status."
           actions={
             <div className="flex gap-2">
               <div className="relative w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search drivers..." 
+                <Input
+                  placeholder="Search drivers..."
                   className="pl-9"
                   value={driverSearchQuery}
                   onChange={e => setDriverSearchQuery(e.target.value)}
@@ -453,8 +453,8 @@ function LGUAdmin() {
           </CardHeader>
           <CardContent>
             {filteredDrivers.length === 0 ? (
-              <EmptyState 
-                title="No drivers found" 
+              <EmptyState
+                title="No drivers found"
                 description={driverSearchQuery ? "Try a different search term." : "No drivers registered in the system."}
                 icon={Users}
               />
@@ -466,7 +466,7 @@ function LGUAdmin() {
                     <TableHead>Driver Name</TableHead>
                     <TableHead>Contact</TableHead>
                     <TableHead className="text-center">Demerit Points</TableHead>
-                    <TableHead className="text-center" style={{minWidth: '150px'}}>Progress to Limit</TableHead>
+                    <TableHead className="text-center" style={{ minWidth: '150px' }}>Progress to Limit</TableHead>
                     <TableHead className="text-center">Risk Level</TableHead>
                     <TableHead className="text-center">License Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -493,7 +493,7 @@ function LGUAdmin() {
                         <TableCell className="text-center">
                           <div className="flex items-center gap-2">
                             <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                              <div className={`h-full ${progressColor} transition-all`} style={{width: `${progress}%`}} />
+                              <div className={`h-full ${progressColor} transition-all`} style={{ width: `${progress}%` }} />
                             </div>
                             <span className="text-xs text-muted-foreground w-8">{progress}%</span>
                           </div>
@@ -528,14 +528,14 @@ function LGUAdmin() {
 
   const renderDriverRecords = () => (
     <div className="space-y-6 animate-in fade-in duration-300">
-      <PageHeader 
-        title="Driver Records" 
+      <PageHeader
+        title="Driver Records"
         description="Search and view detailed driver information and violation history."
         actions={
           <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search by name or plate..." 
+            <Input
+              placeholder="Search by name or plate..."
               className="pl-9"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
@@ -552,8 +552,8 @@ function LGUAdmin() {
           </CardHeader>
           <CardContent>
             {filteredTickets.length === 0 ? (
-              <EmptyState 
-                title="No records found" 
+              <EmptyState
+                title="No records found"
                 description={searchQuery ? "Try a different search term." : "No violation records available."}
               />
             ) : (
@@ -611,7 +611,14 @@ function LGUAdmin() {
                 <DetailRow label="Demerit Points" value={<span className="text-orange-600 font-bold">{selectedTicket.total_demerit_points || 0} pts</span>} />
                 <DetailRow label="Driver Total Demerits" value={<span className="text-red-600 font-bold">{selectedTicket.driver_demerit_points || 0} pts</span>} />
                 <DetailRow label="Location" value={selectedTicket.location} />
-                <DetailRow label="Date Issued" value={selectedTicket.date_issued} />
+                <DetailRow label="Date Issued" value={new Date(selectedTicket.date_issued)
+                  .toLocaleDateString('en-US', {
+                    month: '2-digit',
+                    day: '2-digit',
+                    year: 'numeric',
+                  })
+                  .replace(/\//g, '-') // Swaps slashes for dashes
+                } />
                 <DetailRow label="Issued By" value={`${selectedTicket.officer_first_name || selectedTicket.issued_by_username || '—'} ${selectedTicket.officer_last_name || ''}`} />
                 <DetailRow label="Status" value={<StatusBadge status={selectedTicket.status} />} />
                 {selectedTicket.status === 'PAID' && (
@@ -620,10 +627,10 @@ function LGUAdmin() {
                     <DetailRow label="Processed By" value={`${selectedTicket.processed_by_first_name || selectedTicket.processed_by_username || '—'} ${selectedTicket.processed_by_last_name || ''}`} />
                   </>
                 )}
-                
+
                 <div className="pt-4 border-t">
-                  <Button 
-                    className="w-full" 
+                  <Button
+                    className="w-full"
                     onClick={() => setActiveMenu("modify-ticket")}
                   >
                     <FileEdit className="w-4 h-4 mr-2" />
@@ -644,14 +651,14 @@ function LGUAdmin() {
 
   const renderModifyTicket = () => (
     <div className="space-y-6 animate-in fade-in duration-300">
-      <PageHeader 
-        title="Modify Ticket Status" 
+      <PageHeader
+        title="Modify Ticket Status"
         description="Update ticket status or dismiss violations as needed."
         actions={
           <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search tickets..." 
+            <Input
+              placeholder="Search tickets..."
               className="pl-9"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
@@ -667,8 +674,8 @@ function LGUAdmin() {
         </CardHeader>
         <CardContent>
           {filteredTickets.length === 0 ? (
-            <EmptyState 
-              title="No tickets found" 
+            <EmptyState
+              title="No tickets found"
               description={searchQuery ? "Try a different search term." : "No tickets available."}
             />
           ) : (
@@ -726,16 +733,16 @@ function LGUAdmin() {
     const paymentLogs = logs.filter(l => l.affected_table === 'Payment' || l.action?.includes('PAYMENT'));
     const driverLogs = logs.filter(l => l.affected_table === 'Driver' || l.action?.includes('DRIVER'));
     const vehicleLogs = logs.filter(l => l.affected_table === 'Vehicle' || l.action?.includes('VEHICLE'));
-    
+
     // Count by operation type
     const createOps = logs.filter(l => l.action?.includes('CREATE')).length;
     const updateOps = logs.filter(l => l.action?.includes('UPDATE')).length;
     const deleteOps = logs.filter(l => l.action?.includes('DELETE')).length;
-    
+
     return (
       <div className="space-y-6 animate-in fade-in duration-300">
-        <PageHeader 
-          title="Audit Trail" 
+        <PageHeader
+          title="Audit Trail"
           description="Track all data modifications within your LGU jurisdiction - ticket issuance, payments, and record updates."
         />
 
@@ -774,8 +781,8 @@ function LGUAdmin() {
           </CardHeader>
           <CardContent>
             {logs.length === 0 ? (
-              <EmptyState 
-                title="No audit records" 
+              <EmptyState
+                title="No audit records"
                 description="Data modifications will appear here when performed."
                 icon={History}
               />
@@ -846,8 +853,19 @@ function LGUAdmin() {
               <div className="grid grid-cols-2 gap-4">
                 <DetailRow label="Ticket Number" value={selectedTicket.ticket_number} />
                 <DetailRow label="Status" value={<StatusBadge status={selectedTicket.status} />} />
-                <DetailRow label="Date Issued" value={selectedTicket.date_issued} />
-                <DetailRow label="Time Issued" value={selectedTicket.time_issued} />
+                <DetailRow label="Date Issued" value={new Date(selectedTicket.date_issued)
+                  .toLocaleDateString('en-US', {
+                    month: '2-digit',
+                    day: '2-digit',
+                    year: 'numeric',
+                  })
+                  .replace(/\//g, '-') // Swaps slashes for dashes
+                } />
+                <DetailRow label="Time Issued" value={new Date('1970-01-01T' + selectedTicket.time_issued).toLocaleTimeString('en-US', {
+                  hour: 'numeric',
+                  minute: 'numeric',
+                  hour12: true
+                })} />
                 <DetailRow label="Driver" value={`${selectedTicket.first_name} ${selectedTicket.last_name}`} />
                 <DetailRow label="Plate Number" value={selectedTicket.plate_number} mono />
                 <DetailRow label="Violation" value={selectedTicket.violation_names || '—'} />
@@ -890,22 +908,29 @@ function LGUAdmin() {
                   <span className="text-muted-foreground">Plate:</span>
                   <span className="font-mono">{selectedTicket.plate_number}</span>
                   <span className="text-muted-foreground">Date:</span>
-                  <span>{selectedTicket.date_issued}</span>
+                  <span>{new Date(selectedTicket.date_issued)
+                    .toLocaleDateString('en-US', {
+                      month: '2-digit',
+                      day: '2-digit',
+                      year: 'numeric',
+                    })
+                    .replace(/\//g, '-') // Swaps slashes for dashes
+                  }</span>
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <Label>Location</Label>
-                <Input 
-                  value={editForm.location} 
-                  onChange={e => setEditForm({...editForm, location: e.target.value})}
+                <Input
+                  value={editForm.location}
+                  onChange={e => setEditForm({ ...editForm, location: e.target.value })}
                   placeholder="Location of violation"
                 />
               </div>
 
               <div className="space-y-2">
                 <Label>Status</Label>
-                <Select value={editForm.status} onValueChange={val => setEditForm({...editForm, status: val})}>
+                <Select value={editForm.status} onValueChange={val => setEditForm({ ...editForm, status: val })}>
                   <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="OPEN">OPEN - Pending Payment</SelectItem>
@@ -935,29 +960,29 @@ function LGUAdmin() {
           <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
             <div className="space-y-2">
               <Label>License Number *</Label>
-              <Input 
-                value={driverForm.license_number} 
-                onChange={e => setDriverForm({...driverForm, license_number: e.target.value})}
+              <Input
+                value={driverForm.license_number}
+                onChange={e => setDriverForm({ ...driverForm, license_number: e.target.value })}
                 placeholder="D-0012345"
                 disabled={!!editingDriver}
               />
               {editingDriver && <p className="text-xs text-muted-foreground">License number cannot be changed</p>}
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>First Name *</Label>
-                <Input 
-                  value={driverForm.first_name} 
-                  onChange={e => setDriverForm({...driverForm, first_name: e.target.value})}
+                <Input
+                  value={driverForm.first_name}
+                  onChange={e => setDriverForm({ ...driverForm, first_name: e.target.value })}
                   placeholder="John"
                 />
               </div>
               <div className="space-y-2">
                 <Label>Last Name *</Label>
-                <Input 
-                  value={driverForm.last_name} 
-                  onChange={e => setDriverForm({...driverForm, last_name: e.target.value})}
+                <Input
+                  value={driverForm.last_name}
+                  onChange={e => setDriverForm({ ...driverForm, last_name: e.target.value })}
                   placeholder="Doe"
                 />
               </div>
@@ -965,9 +990,9 @@ function LGUAdmin() {
 
             <div className="space-y-2">
               <Label>Address</Label>
-              <Input 
-                value={driverForm.address} 
-                onChange={e => setDriverForm({...driverForm, address: e.target.value})}
+              <Input
+                value={driverForm.address}
+                onChange={e => setDriverForm({ ...driverForm, address: e.target.value })}
                 placeholder="123 Main Street, City"
               />
             </div>
@@ -975,17 +1000,17 @@ function LGUAdmin() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Birth Date</Label>
-                <Input 
+                <Input
                   type="date"
-                  value={driverForm.birth_date} 
-                  onChange={e => setDriverForm({...driverForm, birth_date: e.target.value})}
+                  value={driverForm.birth_date}
+                  onChange={e => setDriverForm({ ...driverForm, birth_date: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
                 <Label>Contact Number</Label>
-                <Input 
-                  value={driverForm.contact_number} 
-                  onChange={e => setDriverForm({...driverForm, contact_number: e.target.value})}
+                <Input
+                  value={driverForm.contact_number}
+                  onChange={e => setDriverForm({ ...driverForm, contact_number: e.target.value })}
                   placeholder="+63-XXX-XXX-XXXX"
                 />
               </div>
@@ -993,10 +1018,10 @@ function LGUAdmin() {
 
             <div className="space-y-2">
               <Label>Email</Label>
-              <Input 
+              <Input
                 type="email"
-                value={driverForm.email} 
-                onChange={e => setDriverForm({...driverForm, email: e.target.value})}
+                value={driverForm.email}
+                onChange={e => setDriverForm({ ...driverForm, email: e.target.value })}
                 placeholder="john@example.com"
               />
             </div>
@@ -1008,9 +1033,9 @@ function LGUAdmin() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>License Status</Label>
-                      <Select 
-                        value={driverForm.license_status} 
-                        onValueChange={val => setDriverForm({...driverForm, license_status: val})}
+                      <Select
+                        value={driverForm.license_status}
+                        onValueChange={val => setDriverForm({ ...driverForm, license_status: val })}
                       >
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -1022,16 +1047,16 @@ function LGUAdmin() {
                     </div>
                     <div className="space-y-2">
                       <Label>Demerit Points</Label>
-                      <Input 
+                      <Input
                         type="number"
                         min="0"
-                        value={driverForm.demerit_points} 
-                        onChange={e => setDriverForm({...driverForm, demerit_points: parseInt(e.target.value) || 0})}
+                        value={driverForm.demerit_points}
+                        onChange={e => setDriverForm({ ...driverForm, demerit_points: parseInt(e.target.value) || 0 })}
                       />
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
-                    Note: Changing demerit points manually will not trigger automatic license suspension. 
+                    Note: Changing demerit points manually will not trigger automatic license suspension.
                     The threshold is {demeritThreshold} points.
                   </p>
                 </div>
